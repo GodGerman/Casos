@@ -1,8 +1,8 @@
 package API;
 
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.sql.ResultSet;
+import javax.json.Json;
+import javax.json.JsonObjectBuilder;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -10,28 +10,54 @@ import javax.servlet.http.HttpServletResponse;
 
 public class Login extends HttpServlet {
 
-    private PrintWriter outter;
-
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        outter = response.getWriter();
-        response.setContentType("text/html");
+        handleLogin(request, response);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        handleLogin(request, response);
+    }
+
+    private void handleLogin(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
         String usuario = request.getParameter("User");
+        if (usuario == null) {
+            usuario = request.getParameter("nombre_usuario");
+        }
         String password = request.getParameter("password");
-        PrintWriter out = response.getWriter();
+        if (password == null) {
+            password = request.getParameter("contrasena");
+        }
+
+        if (usuario == null || password == null) {
+            ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "credenciales_incompletas");
+            return;
+        }
+
         try {
-            DB bd = new DB();
-            bd.setConnection("com.mysql.cj.jdbc.Driver", "jdbc:mysql://localhost/usuarios?serverTimezone=UTC");
-            ResultSet rs = bd.executeQuery("select * from login where USERNAME='" + usuario + "' and PASSWORD='" + password + "';");
-            if (rs.next()) {
-                //out.println("{\"status\":\"yes\",\"tipo\":\"administrador\"}");
-                out.println("{\"status\":\"yes\",\"tipo\":\"" + rs.getString("tipousuario") + "\"}");
+            AuthService.AuthResult result = AuthService.authenticate(usuario, password);
+            JsonObjectBuilder body = Json.createObjectBuilder();
+            if (result != null) {
+                AuthService.applySession(request, result);
+                body.add("status", "yes")
+                        .add("tipo", result.nombreRol)
+                        .add("id_usuario", result.idUsuario)
+                        .add("id_rol", result.idRol)
+                        .add("nombre_usuario", result.nombreUsuario);
             } else {
-                out.println("{\"status\":\"no\",\"tipo\":\"nodefinido\"}");
+                body.add("status", "no")
+                        .add("tipo", "nodefinido");
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+            ResponseUtil.writeOk(response, body.build());
+        } catch (Exception ex) {
+            ResponseUtil.writeError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "error_autenticacion");
         }
     }
 }

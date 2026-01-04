@@ -164,8 +164,7 @@ CREATE TABLE `archivos_multimedia` (
   `duracion_segundos`   DECIMAL(10,2) DEFAULT NULL,
   `ancho`               INT DEFAULT NULL,
   `alto`                INT DEFAULT NULL,
-  `ruta_archivo`        VARCHAR(500) DEFAULT NULL,
-  `datos_archivo`       LONGBLOB DEFAULT NULL,
+  `ruta_archivo`        VARCHAR(500) NOT NULL,
   `fecha_creacion`      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `fecha_actualizacion` TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id_archivo`),
@@ -175,6 +174,12 @@ CREATE TABLE `archivos_multimedia` (
     FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`)
     ON UPDATE CASCADE
     ON DELETE CASCADE,
+  CONSTRAINT `chk_multimedia_ruta_extension`
+    CHECK (
+      (`tipo_media` = 'AUDIO' AND `ruta_archivo` LIKE '%.mp3') OR
+      (`tipo_media` = 'VIDEO' AND `ruta_archivo` LIKE '%.mp4') OR
+      (`tipo_media` = 'IMAGEN' AND (`ruta_archivo` LIKE '%.jpg' OR `ruta_archivo` LIKE '%.jpeg'))
+    )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
 -- ---------------------------------------------------------------------

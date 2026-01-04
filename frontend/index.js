@@ -1,19 +1,9 @@
-import React, { Component } from 'react';
+import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter} from 'react-router-dom';
-import BootstrapReac from './src/componentes/BootstrapReact.jsx'
- 
-class Aplicacion extends React.Component {
-render() {
-      return(
-    <BrowserRouter>
-      <BootstrapReac />
-    </BrowserRouter>
-      );    
-  }
-}
- 
-export default Aplicacion;
+import App from './src/App.jsx';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './Css/theme.css';
+import './Css/app.css';
 
 const root = createRoot(document.getElementById('raiz'));
-root.render(<Aplicacion />);
+root.render(<App />);

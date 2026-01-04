@@ -1,0 +1,69 @@
+:root {
+    /* Primary Colors - Blue Scale */
+    --primary-50: #eff6ff;
+    --primary-100: #dbeafe;
+    --primary-200: #bfdbfe;
+    --primary-300: #93c5fd;
+    --primary-400: #60a5fa;
+    --primary-500: #3b82f6; /* Main Primary */
+    --primary-600: #2563eb;
+    --primary-700: #1d4ed8;
+    --primary-800: #1e40af;
+    --primary-900: #1e3a8a;
+
+    /* Backgrounds - Slate/Dark Scale */
+    --bg-dark-900: #0f172a; /* Main App Background */
+    --bg-dark-800: #1e293b; /* Cards / Panels */
+    --bg-dark-700: #334155; /* Borders / Separators */
+    --bg-dark-600: #475569;
+
+    /* Text Colors */
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+
+    /* Accents & Status */
+    --accent-teal: #14b8a6;
+    --accent-cyan: #06b6d4;
+    --status-success: #22c55e;
+    --status-warning: #f59e0b;
+    --status-error: #ef4444;
+
+    /* UI Logic Map */
+    --app-bg: var(--bg-dark-900);
+    --app-surface: var(--bg-dark-800);
+    --app-border: var(--bg-dark-700);
+    --app-text-main: var(--text-primary);
+    --app-text-sub: var(--text-secondary);
+    --app-primary: var(--primary-500);
+    --app-primary-hover: var(--primary-600);
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-glow: 0 0 15px rgba(59, 130, 246, 0.3);
+}
+
+body {
+    background-color: var(--app-bg);
+    color: var(--app-text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-dark-900);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--bg-dark-700);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--bg-dark-600);
+}
