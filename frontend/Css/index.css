@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;700&display=swap');
+
+.login-body {
+    background-image: url('/img/CasoUsos.png');
+    background-size: cover; 
+    background-position: center; 
+    background-attachment: fixed;
+    min-height: 100vh; 
+    background-color: #e0e0e0;
+}
+
+.custom-header-bg{
+    background-color: cornflowerblue;
+    
+}
+
+h1{
+    font-family: 'Times New Roman', Times, serif;
+    font-weight: 700;
+    font-size: 50px;
+}
+
+.center-container{
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    color: cornflowerblue;
+    font-style: oblique;
+    font-size: x-large;
+}
+
+.login-submit{
+    padding: 10px 30px; 
+    font-size: 1.2rem;
+    margin-top: 15px;
+    background-color: cornflowerblue !important;
+    border-color: cornsilk !important;
+}
+
+.login-submit:hover{
+    background-color: crimson !important;
+    border-color: black !important;
+
+}
