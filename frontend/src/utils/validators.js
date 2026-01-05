@@ -1,5 +1,16 @@
+// Limite maximo para archivos multimedia en MB.
+// Se usa para validar uploads en cliente antes de enviar al backend.
 const MAX_MB = 20;
 
+/**
+ * Valida datos minimos de un diagrama.
+ *
+ * Se valida el nombre, las dimensiones minimas y el JSON opcional.
+ *
+ *
+ * @param {object} diagrama datos a validar.
+ * @returns {string[]} lista de errores; vacia si es valido.
+ */
 export function validarDiagrama(diagrama) {
   const errores = [];
   if (!diagrama.nombre || !diagrama.nombre.trim()) {
@@ -18,6 +29,15 @@ export function validarDiagrama(diagrama) {
   return errores;
 }
 
+/**
+ * Valida campos basicos de un elemento UML.
+ *
+ * Se valida el tipo, las dimensiones positivas y el JSON opcional.
+ *
+ *
+ * @param {object} elemento datos a validar.
+ * @returns {string[]} lista de errores; vacia si es valido.
+ */
 export function validarElemento(elemento) {
   const errores = [];
   if (!elemento.tipo_elemento) {
@@ -40,6 +60,15 @@ export function validarElemento(elemento) {
   return errores;
 }
 
+/**
+ * Valida campos basicos de una conexion UML.
+ *
+ * Se valida el tipo y el JSON opcional de puntos/estilo.
+ *
+ *
+ * @param {object} conexion datos a validar.
+ * @returns {string[]} lista de errores; vacia si es valido.
+ */
 export function validarConexion(conexion) {
   const errores = [];
   if (!conexion.tipo_conexion) {
@@ -56,6 +85,15 @@ export function validarConexion(conexion) {
   return errores;
 }
 
+/**
+ * Valida extension y tamano de un archivo multimedia.
+ *
+ * Se valida la extension contra la lista permitida y se compara contra MAX_MB.
+ *
+ *
+ * @param {File} file archivo a validar.
+ * @returns {{ok: boolean, mensaje?: string}} resultado de validacion.
+ */
 export function validarArchivo(file) {
   if (!file) {
     return { ok: false, mensaje: 'Selecciona un archivo.' };
@@ -72,6 +110,16 @@ export function validarArchivo(file) {
   return { ok: true };
 }
 
+/**
+ * Valida un string JSON opcional, retornando error legible si falla.
+ *
+ * Se intenta JSON.parse y captura errores de sintaxis.
+ *
+ *
+ * @param {string|null|undefined} valor string JSON.
+ * @param {string} nombre nombre del campo para el mensaje.
+ * @returns {string|null} mensaje de error o null si es valido.
+ */
 export function validarJsonOpcional(valor, nombre) {
   if (!valor || typeof valor !== 'string' || !valor.trim()) {
     return null;
@@ -84,6 +132,15 @@ export function validarJsonOpcional(valor, nombre) {
   return null;
 }
 
+/**
+ * Infere el tipo de media desde la extension del archivo.
+ *
+ * Se compara extension contra un mapa de tipos conocidos.
+ *
+ *
+ * @param {File} file archivo a evaluar.
+ * @returns {string|null} tipo (AUDIO/VIDEO/IMAGEN) o null si no aplica.
+ */
 export function obtenerTipoMedia(file) {
   if (!file) {
     return null;

@@ -1,5 +1,7 @@
 import React from 'react';
 
+// SVGs simplificados por tipo de elemento (para paleta y listados).
+// Mantenerlos livianos ayuda a renderizar listas largas sin costo alto.
 const ICONS = {
   ACTOR: (
     <>
@@ -51,6 +53,16 @@ const ICONS = {
   )
 };
 
+/**
+ * Renderiza un icono SVG segun tipo de elemento.
+ *
+ * Se selecciona el SVG por tipo y lo envuelve en un
+ * <svg> con tamaño configurable y atributos accesibles.
+ *
+ *
+ * @param {{ type: string, size?: number, className?: string }} props props del icono.
+ * @returns {JSX.Element|null} SVG o null si el tipo no existe.
+ */
 export default function ElementIcon({ type, size = 24, className = '' }) {
   const icon = ICONS[type];
   if (!icon) {

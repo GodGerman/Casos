@@ -1,6 +1,8 @@
 import React from 'react';
 import ElementIcon from './ElementIcon.jsx';
 
+// Elementos disponibles para drag & drop hacia el lienzo.
+// RELACION no crea elemento, solo habilita la UI de conexiones.
 const ITEMS = [
   { tipo: 'ACTOR', etiqueta: 'Actor' },
   { tipo: 'CASO_DE_USO', etiqueta: 'Caso de Uso' },
@@ -12,7 +14,27 @@ const ITEMS = [
   { tipo: 'RELACION', etiqueta: 'Relación' }
 ];
 
+/**
+ * Panel de herramientas con elementos arrastrables al canvas.
+ *
+ * Se renderiza cada item como draggable y prepara el
+ * dataTransfer con el tipo del elemento para que el Canvas lo cree.
+ *
+ *
+ * @returns {JSX.Element} tarjeta con items de la paleta.
+ */
 export default function Palette() {
+  /**
+   * Configura el dataTransfer para el drop en el canvas.
+   *
+   * Se escribe la clave "tipo_elemento" en dataTransfer
+   * y marca la operacion como copia para no mover el item.
+   *
+   *
+   * @param {DragEvent} event evento de drag.
+   * @param {string} tipo tipo de elemento a crear.
+   * @returns {void} no retorna valor; solo prepara dataTransfer.
+   */
   const onDragStart = (event, tipo) => {
     event.dataTransfer.setData('tipo_elemento', tipo);
     event.dataTransfer.effectAllowed = 'copy';

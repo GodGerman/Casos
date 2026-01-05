@@ -11,6 +11,15 @@ import {
 import { buildFileUrl } from '../services/api.js';
 import { obtenerTipoMedia, validarArchivo } from '../utils/validators.js';
 
+/**
+ * Gestor de multimedia asociada a un diagrama.
+ *
+ * Se lista archivos asociados, permite subir nuevos
+ * y crear la relacion diagrama-archivo en el backend.
+ *
+ *
+ * @returns {JSX.Element} pagina de carga y listado multimedia.
+ */
 export default function MediaManagerPage() {
   const { id: id_diagrama } = useParams();
   const [multimedia, setMultimedia] = useState([]);
@@ -18,6 +27,15 @@ export default function MediaManagerPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  /**
+   * Carga la lista de multimedia asociada al diagrama.
+   *
+   * @returns {Promise<void>} no retorna valor; actualiza estado local.
+   * Si falla la red o el backend, actualiza el mensaje de error.
+   *
+   * Se llama al endpoint de listado y guarda el arreglo en estado.
+   *
+   */
   const cargar = async () => {
     setLoading(true);
     setError('');
@@ -35,6 +53,17 @@ export default function MediaManagerPage() {
     cargar();
   }, [id_diagrama]);
 
+  /**
+   * Valida y sube un archivo, luego lo asocia al diagrama.
+   *
+   * @param {FileList} files archivos seleccionados o arrastrados.
+   * @returns {Promise<void>} no retorna valor; actualiza listado.
+   * Si el backend falla, actualiza el mensaje de error.
+   *
+   * Se valida la extension y el tamano, se sube via multipart y
+   * se crea la relacion en diagrama_multimedia.
+   *
+   */
   const handleFiles = async (files) => {
     if (!files || files.length === 0) {
       return;
@@ -69,11 +98,32 @@ export default function MediaManagerPage() {
     }
   };
 
+  /**
+   * Handler de drop para arrastrar archivos al area de carga.
+   *
+   * @param {DragEvent} event evento de drop.
+   * @returns {void} no retorna valor; delega a handleFiles.
+   *
+   * Se cancela el comportamiento por defecto y toma los archivos
+   * desde dataTransfer.
+   *
+   */
   const handleDrop = (event) => {
     event.preventDefault();
     handleFiles(event.dataTransfer.files);
   };
 
+  /**
+   * Elimina la asociacion entre el diagrama y un archivo.
+   *
+   * @param {number} id_archivo id del archivo a quitar.
+   * @returns {Promise<void>} no retorna valor; recarga listado.
+   * Si el backend falla, actualiza el mensaje de error.
+   *
+   * Se confirma con el usuario, llama al endpoint de borrado
+   * de la relacion y recarga el listado.
+   *
+   */
   const handleDelete = async (id_archivo) => {
     if (!window.confirm('Eliminar esta asociacion?')) {
       return;

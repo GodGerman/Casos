@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import UMLElement from './canvas/UMLElement.jsx';
 
+// Estilos de linea y marcador segun tipo de conexion UML.
+// Se usan para configurar dash y markerEnd en el SVG.
 const CONNECTION_STYLE = {
   ASOCIACION: { dash: null, marker: null },
   INCLUSION: { dash: '6 4', marker: 'arrow' },
@@ -10,6 +12,16 @@ const CONNECTION_STYLE = {
   ENLACE_NOTA: { dash: '2 3', marker: 'arrow' }
 };
 
+/**
+ * Convierte un tipo en clase CSS normalizada.
+ *
+ * Se convierte a minusculas y se reemplazan underscores para
+ * mantener convenciones de CSS.
+ *
+ *
+ * @param {string} tipo tipo de elemento.
+ * @returns {string} clase CSS o cadena vacia.
+ */
 const toTypeClass = (tipo) => {
   if (!tipo) {
     return '';
@@ -17,6 +29,27 @@ const toTypeClass = (tipo) => {
   return `tipo-${tipo.toLowerCase().replace(/_/g, '-')}`;
 };
 
+/**
+ * Lienzo del editor: renderiza elementos y conexiones, y recibe drag & drop.
+ *
+ * Se calcula un mapa id->elemento para resolver conexiones,
+ * dibuja lineas SVG con markers y etiqueta en el punto medio, y posiciona
+ * cada elemento como div absoluto para permitir drag y seleccion.
+ *
+ *
+ * @param {object} props props del canvas.
+ * @param {React.RefObject} props.canvasRef referencia al contenedor para medir offset.
+ * @param {number} props.width ancho del lienzo.
+ * @param {number} props.height alto del lienzo.
+ * @param {Array} props.elements elementos a renderizar.
+ * @param {Array} props.connections conexiones a renderizar.
+ * @param {number|null} props.selectedElementId id del elemento seleccionado.
+ * @param {Function} props.onDrop handler de drop para crear elementos.
+ * @param {Function} props.onDragOver handler para permitir drop.
+ * @param {Function} props.onElementMouseDown handler para drag de elementos.
+ * @param {Function} props.onElementClick handler para seleccionar elementos.
+ * @returns {JSX.Element} contenedor con SVG de conexiones y elementos UML.
+ */
 export default function Canvas({
   canvasRef,
   width,
@@ -30,12 +63,15 @@ export default function Canvas({
   onElementClick
 }) {
   const elementMap = useMemo(() => {
+    // Acceso rapido por id para construir conexiones.
     const map = new Map();
     elements.forEach((el) => map.set(el.id_elemento, el));
     return map;
   }, [elements]);
 
   const lines = useMemo(() => {
+    // Calcula coordenadas centro-centro y estilos para dibujar lineas.
+    // Se omiten conexiones cuyos elementos no existan en memoria.
     return connections
       .map((conn) => {
         const from = elementMap.get(conn.id_elemento_origen);
@@ -44,6 +80,7 @@ export default function Canvas({
           return null;
         }
         const style = CONNECTION_STYLE[conn.tipo_conexion] || CONNECTION_STYLE.ASOCIACION;
+        // Punto medio para posicionar la etiqueta sin medir texto.
         const midX = (from.pos_x + from.ancho / 2 + to.pos_x + to.ancho / 2) / 2;
         const midY = (from.pos_y + from.alto / 2 + to.pos_y + to.alto / 2) / 2;
         return {
@@ -88,6 +125,7 @@ export default function Canvas({
       >
         <svg className="canvas-lines position-absolute top-0 start-0 pointer-events-none" width={width} height={height} style={{ zIndex: 1 }}>
           <defs>
+            {/* Marcadores reutilizables para flechas/triangulos */}
             <marker
               id="arrow"
               viewBox="0 0 10 10"
@@ -126,6 +164,7 @@ export default function Canvas({
           ))}
           {lines.map((line) => (
             line.etiqueta ? (
+              // Etiqueta de conexion posicionada en el punto medio.
               <text key={`${line.id}-label`} x={line.midX} y={line.midY - 8} textAnchor="middle" fill="var(--text-primary)" fontSize="11" className="bg-dark-900 px-1 rounded">
                 {line.etiqueta}
               </text>
@@ -149,6 +188,7 @@ export default function Canvas({
                 zIndex: el.orden_z || 10,
                 cursor: 'grab'
               }}
+              // Inicia drag del elemento y selecciona al hacer click.
               onMouseDown={(event) => onElementMouseDown(event, el)}
               onClick={(event) => onElementClick(event, el)}
             >
@@ -161,7 +201,7 @@ export default function Canvas({
                 />
               </div>
 
-              {/* Label handling - Outside SVG for text wrapping if needed, or specific per type */}
+              {/* Etiqueta fuera del SVG para permitir wrap en algunos tipos */}
               <div
                 className="position-absolute w-100 text-center pointer-events-none"
                 style={{

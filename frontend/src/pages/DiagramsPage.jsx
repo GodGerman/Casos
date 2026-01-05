@@ -9,12 +9,23 @@ import {
 } from '../services/diagramas.js';
 import { validarDiagrama } from '../utils/validators.js';
 
+// Catalogo de estados disponibles para diagramas.
+// Se usa para etiquetas visuales y para el select de creacion.
 const ESTADOS = [
   { value: 'ACTIVO', label: 'Activo', color: 'success' },
   { value: 'BORRADOR', label: 'Borrador', color: 'warning' },
   { value: 'ARCHIVADO', label: 'Archivado', color: 'secondary' }
 ];
 
+/**
+ * Dashboard de diagramas del usuario (listar, crear, eliminar).
+ *
+ * Se carga el listado desde el backend, permite filtrar
+ * en cliente, y ofrece un formulario inline para crear diagramas.
+ *
+ *
+ * @returns {JSX.Element} pagina de gestion de diagramas.
+ */
 export default function DiagramsPage() {
   const navigate = useNavigate();
   const [diagramas, setDiagramas] = useState([]);
@@ -31,6 +42,15 @@ export default function DiagramsPage() {
     alto_lienzo: 720
   });
 
+  /**
+   * Carga el listado de diagramas desde el backend.
+   *
+   * @returns {Promise<void>} no retorna valor; actualiza estado local.
+   * En caso de error, registra el mensaje via setError.
+   *
+   * Se llama a listarDiagramas y guarda el arreglo resultante.
+   *
+   */
   const cargar = async () => {
     setLoading(true);
     setError('');
@@ -48,11 +68,31 @@ export default function DiagramsPage() {
     cargar();
   }, []);
 
+  /**
+   * Actualiza el formulario de creacion por cambios en inputs.
+   *
+   * @param {Event} event evento de cambio en input/select.
+   * @returns {void} no retorna valor; solo actualiza estado.
+   *
+   * Se usa name/value del input para sobrescribir el campo.
+   *
+   */
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  /**
+   * Crea un diagrama nuevo y redirige al editor.
+   *
+   * @param {Event} event submit del formulario.
+   * @returns {Promise<void>} no retorna valor; navega o muestra error.
+   * Si falla la validacion o el backend rechaza, muestra el error.
+   *
+   * Se validan campos, se prepara el payload normalizado y
+   * luego se navega al editor con el id creado.
+   *
+   */
   const handleCreate = async (event) => {
     event.preventDefault();
     setError('');
@@ -83,6 +123,18 @@ export default function DiagramsPage() {
     }
   };
 
+  /**
+   * Elimina un diagrama existente tras confirmacion.
+   *
+   * @param {Event} e evento del click.
+   * @param {number} id_diagrama id del diagrama a eliminar.
+   * @returns {Promise<void>} no retorna valor; actualiza listado.
+   * Si el backend falla, muestra el error correspondiente.
+   *
+   * Se confirma via window.confirm, llama al endpoint
+   * de borrado y recarga el listado.
+   *
+   */
   const handleDelete = async (e, id_diagrama) => {
     e.preventDefault(); // prevent link navigation if inside a link
     e.stopPropagation();
@@ -101,6 +153,7 @@ export default function DiagramsPage() {
   };
 
   const filtrados = useMemo(() => {
+    // Filtro por nombre en cliente.
     if (!filtro.trim()) {
       return diagramas;
     }

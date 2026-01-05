@@ -16,9 +16,29 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+/**
+ * Servlet para administrar la relacion entre diagramas y archivos multimedia.
+ *
+ * Maneja la tabla puente diagrama_multimedia y expone el listado de archivos
+ * asociados con metadatos de archivos_multimedia.
+ *
+ */
 @WebServlet(name = "DiagramaMultimediaServlet", urlPatterns = {"/api/diagrama-multimedia"})
 public class DiagramaMultimediaServlet extends HttpServlet {
 
+    /**
+     * Lista multimedia asociada a un diagrama.
+     * No retorna valor; responde 400/403/500 segun validaciones.
+     *
+     * Se valida el id_diagrama, se verifica la propiedad, se ejecuta un JOIN
+     * con archivos_multimedia y devuelve el listado.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -36,6 +56,7 @@ public class DiagramaMultimediaServlet extends HttpServlet {
             return;
         }
 
+        // Join para devolver metadatos del archivo.
         String sql = "SELECT dm.id_diagrama, dm.id_archivo, dm.descripcion, dm.orden, dm.fecha_creacion, "
                 + "am.tipo_media, am.titulo, am.ruta_archivo "
                 + "FROM diagrama_multimedia dm "
@@ -67,6 +88,18 @@ public class DiagramaMultimediaServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Crea una asociacion diagrama-archivo con orden opcional.
+     * No retorna valor; responde 400/403/500 segun validaciones.
+     *
+     * Se validan ids, se fuerza orden default, se inserta en tabla puente.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -92,6 +125,7 @@ public class DiagramaMultimediaServlet extends HttpServlet {
             orden = 0;
         }
 
+        // Inserta relacion en tabla puente.
         String sql = "INSERT INTO diagrama_multimedia (id_diagrama, id_archivo, descripcion, orden) VALUES (?,?,?,?)";
         try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
@@ -111,6 +145,18 @@ public class DiagramaMultimediaServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Elimina la asociacion entre diagrama y archivo.
+     * No retorna valor; responde 400/403/404/500 segun validaciones.
+     *
+     * Se validan ids, se verifica la propiedad y se ejecuta DELETE.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -146,6 +192,16 @@ public class DiagramaMultimediaServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Verifica si el diagrama pertenece al usuario de la sesion.
+     *
+     * Se consulta id_usuario propietario y compara con sesion.
+     *
+     *
+     * @param id_diagrama id del diagrama.
+     * @param id_usuario_sesion id del usuario autenticado.
+     * @return true si es propietario; false si no coincide o hay error.
+     */
     private boolean isOwnerDiagram(int id_diagrama, Integer id_usuario_sesion) {
         if (id_usuario_sesion == null) {
             return false;
@@ -165,6 +221,15 @@ public class DiagramaMultimediaServlet extends HttpServlet {
         return false;
     }
 
+    /**
+     * Parsea un entero desde query string.
+     *
+     * Se recorta el texto y se parsea con manejo de NumberFormatException.
+     *
+     *
+     * @param value texto recibido.
+     * @return Integer o null si no es valido.
+     */
     private Integer parseInt(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;
@@ -176,6 +241,15 @@ public class DiagramaMultimediaServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Obtiene id_usuario de la sesion si existe.
+     *
+     * Se lee el atributo "id_usuario" y valida tipo Integer.
+     *
+     *
+     * @param request request HTTP actual.
+     * @return id_usuario o null si no hay sesion.
+     */
     private Integer getSessionUserId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -185,6 +259,15 @@ public class DiagramaMultimediaServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
+    /**
+     * Obtiene id_rol de la sesion si existe.
+     *
+     * Se lee el atributo "id_rol" y valida tipo Integer.
+     *
+     *
+     * @param request request HTTP actual.
+     * @return id_rol o null si no hay sesion.
+     */
     private Integer getSessionRoleId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -194,6 +277,15 @@ public class DiagramaMultimediaServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
+    /**
+     * Determina si el rol corresponde a administrador (id_rol = 1).
+     *
+     * Se usa como regla simple de autorizacion en todos los servlets.
+     *
+     *
+     * @param id_rol id del rol.
+     * @return true si es admin, false en caso contrario.
+     */
     private boolean isAdmin(Integer id_rol) {
         return id_rol != null && id_rol.intValue() == 1;
     }

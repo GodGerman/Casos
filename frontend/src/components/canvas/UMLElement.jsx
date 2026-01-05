@@ -1,5 +1,8 @@
 import React from 'react';
 
+// SVGs base por tipo de elemento UML renderizados dentro del canvas.
+// Cada entrada es una funcion que recibe {width, height} y retorna JSX del shape.
+// Estas formas se dibujan en SVG para poder escalar sin perder calidad.
 const SHAPES = {
     ACTOR: ({ width, height }) => (
         <g transform={`translate(${width / 2}, ${height / 2})`}>
@@ -83,14 +86,25 @@ const SHAPES = {
     )
 };
 
+/**
+ * Renderiza el SVG de un elemento UML con estilo por seleccion.
+ *
+ * Se elige un Shape segun tipo_elemento, aplica color de
+ * trazo distinto cuando esta seleccionado y renderiza un fallback si no
+ * existe un shape especifico.
+ *
+ *
+ * @param {{ element: object, isSelected: boolean, width: number, height: number }} props props del elemento.
+ * @returns {JSX.Element} SVG representando el elemento.
+ */
 export default function UMLElement({ element, isSelected, width, height }) {
     const Shape = SHAPES[element.tipo_elemento];
 
-    // Colors based on element type or selection could go here
+    // Color de trazo cambia si el elemento esta seleccionado.
     const strokeColor = isSelected ? 'var(--primary-400)' : 'var(--text-primary)';
 
     if (!Shape) {
-        // Fallback for unknown types -> connection points or generic box
+        // Fallback para tipos desconocidos: caja generica.
         return (
             <rect
                 x="2"

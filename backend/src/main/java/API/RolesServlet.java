@@ -13,13 +13,33 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+/**
+ * Servlet de lectura de roles disponibles en el sistema.
+ *
+ * Expone un catalogo de roles para interfaces de administracion.
+ * No requiere payload y retorna todos los roles ordenados.
+ *
+ */
 @WebServlet(name = "RolesServlet", urlPatterns = {"/api/roles"})
 public class RolesServlet extends HttpServlet {
 
+    /**
+     * Lista todos los roles registrados.
+     * No retorna valor; escribe JSON y puede responder 500 en error de BD.
+     *
+     * Se ejecuta SELECT simple y construye un arreglo JSON.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         JsonArrayBuilder roles = Json.createArrayBuilder();
+        // Catalogo base para menus de administracion/registro.
         String sql = "SELECT id_rol, nombre_rol, descripcion FROM roles ORDER BY id_rol";
         try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql);

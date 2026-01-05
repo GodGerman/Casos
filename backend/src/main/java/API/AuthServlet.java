@@ -11,9 +11,32 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+/**
+ * Servlet de autenticacion que maneja login y logout por /api/auth/*.
+ *
+ * Expone endpoints JSON para iniciar/cerrar sesion. El login crea
+ * HttpSession y devuelve datos basicos del usuario/rol.
+ *
+ */
 @WebServlet(name = "AuthServlet", urlPatterns = {"/api/auth/login", "/api/auth/logout"})
 public class AuthServlet extends HttpServlet {
 
+    /**
+     * Procesa login (credenciales en JSON o form) y logout.
+     * No retorna valor; escribe JSON y puede responder 400/401/500 segun validacion.
+     *
+     * Flujo:
+     *
+     * - Si la ruta es /logout, invalida la sesion y responde ok.
+     * - Si es /login, lee JSON o parametros form para compatibilidad.
+     * - Valida credenciales, crea sesion y responde datos del usuario.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de la respuesta.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -23,11 +46,13 @@ public class AuthServlet extends HttpServlet {
             if (session != null) {
                 session.invalidate();
             }
+            // Logout siempre responde OK para simplificar el frontend.
             JsonObject body = Json.createObjectBuilder().add("ok", true).build();
             ResponseUtil.writeOk(response, body);
             return;
         }
 
+        // Login: admite JSON en body o parametros form para compatibilidad legacy.
         JsonObject payload = JsonUtil.readJsonObject(request);
         String nombre_usuario = JsonUtil.getString(payload, "nombre_usuario");
         String contrasena = JsonUtil.getString(payload, "contrasena");
@@ -50,6 +75,7 @@ public class AuthServlet extends HttpServlet {
                 return;
             }
 
+            // Crea sesion y retorna datos basicos del usuario.
             AuthService.applySession(request, result);
 
             JsonObjectBuilder builder = Json.createObjectBuilder()

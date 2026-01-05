@@ -18,9 +18,32 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+/**
+ * Servlet CRUD de diagramas UML con control de acceso por usuario.
+ *
+ * Permite listar, crear, actualizar y eliminar diagramas. Las operaciones se
+ * restringen por sesion: el usuario solo ve/modifica sus recursos, salvo
+ * administradores (id_rol = 1).
+ *
+ */
 @WebServlet(name = "DiagramasServlet", urlPatterns = {"/api/diagramas"})
 public class DiagramasServlet extends HttpServlet {
 
+    /**
+     * Obtiene un diagrama por id o lista diagramas del usuario.
+     * No retorna valor; responde 400/403/404/500 segun validaciones.
+     *
+     * Flujo:
+     *
+     * - Si viene id_diagrama, lee un registro y valida propiedad/rol.
+     * - Si no viene, lista diagramas del usuario o de todos si es admin.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -28,8 +51,10 @@ public class DiagramasServlet extends HttpServlet {
         Integer id_rol_sesion = getSessionRoleId(request);
         boolean es_admin = isAdmin(id_rol_sesion);
 
+        // Rama 1: lectura puntual cuando se recibe id_diagrama.
         Integer id_diagrama = parseInt(request.getParameter("id_diagrama"));
         if (id_diagrama != null) {
+            // Caso lectura puntual por id.
             String sql = "SELECT id_diagrama, id_usuario, nombre, descripcion, estado, ancho_lienzo, alto_lienzo, "
                     + "configuracion_json, fecha_creacion, fecha_actualizacion "
                     + "FROM diagramas_uml WHERE id_diagrama = ?";
@@ -57,6 +82,7 @@ public class DiagramasServlet extends HttpServlet {
             return;
         }
 
+        // Rama 2: listado; por defecto se limita al usuario de sesion si no es admin.
         Integer id_usuario = parseInt(request.getParameter("id_usuario"));
         if (!es_admin) {
             id_usuario = id_usuario_sesion;
@@ -66,6 +92,7 @@ public class DiagramasServlet extends HttpServlet {
             return;
         }
 
+        // Construccion dinamica del SQL para filtrar por usuario si aplica.
         String sql = "SELECT id_diagrama, id_usuario, nombre, descripcion, estado, ancho_lienzo, alto_lienzo, "
                 + "configuracion_json, fecha_creacion, fecha_actualizacion "
                 + "FROM diagramas_uml ";
@@ -94,6 +121,20 @@ public class DiagramasServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Crea un nuevo diagrama asociado al usuario en sesion (o al indicado si admin).
+     * No retorna valor; responde 400/403/500 segun validaciones.
+     *
+     * Se lee payload JSON, valida campos obligatorios, asigna
+     * valores por defecto (estado, dimensiones), inserta en BD y retorna el
+     * id generado.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -110,6 +151,7 @@ public class DiagramasServlet extends HttpServlet {
         Integer alto_lienzo = JsonUtil.getInt(payload, "alto_lienzo");
         String configuracion_json = JsonUtil.getString(payload, "configuracion_json");
 
+        // Si no es admin, fuerza el id_usuario al de la sesion.
         if (!es_admin) {
             id_usuario = id_usuario_sesion;
         } else if (id_usuario == null) {
@@ -120,6 +162,7 @@ public class DiagramasServlet extends HttpServlet {
             return;
         }
         if (estado == null) {
+            // Estado por defecto si no viene en payload.
             estado = "ACTIVO";
         }
         if (ancho_lienzo == null) {
@@ -129,6 +172,7 @@ public class DiagramasServlet extends HttpServlet {
             alto_lienzo = 720;
         }
 
+        // Inserta registro y retorna la clave generada.
         String sql = "INSERT INTO diagramas_uml (id_usuario, nombre, descripcion, estado, ancho_lienzo, alto_lienzo, "
                 + "configuracion_json) VALUES (?,?,?,?,?,?,?)";
         try (Connection con = DB.getConnection();
@@ -161,6 +205,19 @@ public class DiagramasServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Actualiza un diagrama existente si el usuario es propietario o admin.
+     * No retorna valor; responde 400/403/404/500 segun validaciones.
+     *
+     * Se validan campos, se verifica la propiedad, se ejecuta UPDATE y
+     * reporta si no se encontro el registro.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doPut(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -189,11 +246,13 @@ public class DiagramasServlet extends HttpServlet {
             return;
         }
 
+        // Control de acceso: solo propietario o admin.
         if (!es_admin && !isOwnerDiagram(id_diagrama.intValue(), id_usuario_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
 
+        // Actualiza campos editables de diagrama.
         String sql = "UPDATE diagramas_uml SET nombre = ?, descripcion = ?, estado = ?, ancho_lienzo = ?, alto_lienzo = ?, "
                 + "configuracion_json = ? WHERE id_diagrama = ?";
         try (Connection con = DB.getConnection();
@@ -225,6 +284,18 @@ public class DiagramasServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Elimina un diagrama si el usuario es propietario o admin.
+     * No retorna valor; responde 400/403/404/500 segun validaciones.
+     *
+     * Se valida el id, se verifica la propiedad y se ejecuta DELETE.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -237,6 +308,7 @@ public class DiagramasServlet extends HttpServlet {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "id_diagrama_requerido");
             return;
         }
+        // Control de acceso: solo propietario o admin.
         if (!es_admin && !isOwnerDiagram(id_diagrama.intValue(), id_usuario_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
@@ -258,6 +330,16 @@ public class DiagramasServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Construye el JSON de un diagrama desde el ResultSet.
+     *
+     * Se extrae columnas y normaliza nulls/fechas a string.
+     *
+     *
+     * @param rs ResultSet posicionado en el registro.
+     * @return builder con campos del diagrama.
+     * @throws Exception si ocurre error al leer columnas.
+     */
     private JsonObjectBuilder buildDiagrama(ResultSet rs) throws Exception {
         JsonObjectBuilder diagrama = Json.createObjectBuilder();
         diagrama.add("id_diagrama", rs.getInt("id_diagrama"));
@@ -275,6 +357,16 @@ public class DiagramasServlet extends HttpServlet {
         return diagrama;
     }
 
+    /**
+     * Verifica si el diagrama pertenece al usuario de la sesion.
+     *
+     * Se consulta el id_usuario propietario y compara con sesion.
+     *
+     *
+     * @param id_diagrama id del diagrama.
+     * @param id_usuario_sesion id del usuario autenticado.
+     * @return true si es propietario; false si no coincide o hay error.
+     */
     private boolean isOwnerDiagram(int id_diagrama, Integer id_usuario_sesion) {
         if (id_usuario_sesion == null) {
             return false;
@@ -294,6 +386,15 @@ public class DiagramasServlet extends HttpServlet {
         return false;
     }
 
+    /**
+     * Normaliza el estado recibido a los valores soportados.
+     *
+     * Se recorta el texto, se convierte a mayusculas y se valida contra el catalogo permitido.
+     *
+     *
+     * @param estado texto de entrada.
+     * @return estado en mayusculas o null si no es valido.
+     */
     private String normalizeEstado(String estado) {
         if (estado == null || estado.trim().isEmpty()) {
             return null;
@@ -305,6 +406,15 @@ public class DiagramasServlet extends HttpServlet {
         return null;
     }
 
+    /**
+     * Parsea un entero desde query string.
+     *
+     * Se recorta el texto y se parsea con manejo de NumberFormatException.
+     *
+     *
+     * @param value texto recibido.
+     * @return Integer o null si no es valido.
+     */
     private Integer parseInt(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;
@@ -316,6 +426,15 @@ public class DiagramasServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Obtiene id_usuario de la sesion si existe.
+     *
+     * Se lee el atributo "id_usuario" y valida tipo Integer.
+     *
+     *
+     * @param request request HTTP actual.
+     * @return id_usuario o null si no hay sesion.
+     */
     private Integer getSessionUserId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -325,6 +444,15 @@ public class DiagramasServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
+    /**
+     * Obtiene id_rol de la sesion si existe.
+     *
+     * Se lee el atributo "id_rol" y valida tipo Integer.
+     *
+     *
+     * @param request request HTTP actual.
+     * @return id_rol o null si no hay sesion.
+     */
     private Integer getSessionRoleId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -334,6 +462,15 @@ public class DiagramasServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
+    /**
+     * Determina si el rol corresponde a administrador (id_rol = 1).
+     *
+     * Se usa como regla simple de autorizacion en todos los servlets.
+     *
+     *
+     * @param id_rol id del rol.
+     * @return true si es admin, false en caso contrario.
+     */
     private boolean isAdmin(Integer id_rol) {
         return id_rol != null && id_rol.intValue() == 1;
     }

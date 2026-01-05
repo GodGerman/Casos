@@ -15,9 +15,29 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+/**
+ * Servlet para administrar multimedia asociada a un elemento del diagrama.
+ *
+ * Maneja la tabla puente elemento_multimedia y expone el listado de archivos
+ * asociados con metadatos de archivos_multimedia.
+ *
+ */
 @WebServlet(name = "ElementoMultimediaServlet", urlPatterns = {"/api/elemento-multimedia"})
 public class ElementoMultimediaServlet extends HttpServlet {
 
+    /**
+     * Lista multimedia asociada a un elemento.
+     * No retorna valor; responde 400/403/500 segun validaciones.
+     *
+     * Se valida el id_elemento, se verifica la propiedad, se ejecuta un JOIN
+     * con archivos_multimedia y devuelve el listado.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -35,6 +55,7 @@ public class ElementoMultimediaServlet extends HttpServlet {
             return;
         }
 
+        // Join para devolver metadatos del archivo asociado.
         String sql = "SELECT em.id_elemento, em.id_archivo, em.tipo_uso, em.fecha_creacion, "
                 + "am.tipo_media, am.titulo, am.ruta_archivo "
                 + "FROM elemento_multimedia em "
@@ -65,6 +86,19 @@ public class ElementoMultimediaServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Crea una asociacion elemento-archivo con tipo de uso.
+     * No retorna valor; responde 400/403/500 segun validaciones.
+     *
+     * Se validan ids y el tipo_uso, se verifica la propiedad y se crea la
+     * relacion en la tabla puente.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -86,6 +120,7 @@ public class ElementoMultimediaServlet extends HttpServlet {
             return;
         }
 
+        // Inserta relacion en tabla puente.
         String sql = "INSERT INTO elemento_multimedia (id_elemento, id_archivo, tipo_uso) VALUES (?,?,?)";
         try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
@@ -100,6 +135,18 @@ public class ElementoMultimediaServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Elimina la asociacion entre elemento y archivo.
+     * No retorna valor; responde 400/403/404/500 segun validaciones.
+     *
+     * Se validan ids, se verifica la propiedad y se ejecuta DELETE.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -135,6 +182,16 @@ public class ElementoMultimediaServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Verifica si un elemento pertenece a un diagrama del usuario autenticado.
+     *
+     * Se join elemento->diagrama y compara propietario.
+     *
+     *
+     * @param id_elemento id del elemento.
+     * @param id_usuario_sesion id del usuario autenticado.
+     * @return true si es propietario; false en caso contrario.
+     */
     private boolean isOwnerElement(int id_elemento, Integer id_usuario_sesion) {
         if (id_usuario_sesion == null) {
             return false;
@@ -156,6 +213,15 @@ public class ElementoMultimediaServlet extends HttpServlet {
         return false;
     }
 
+    /**
+     * Normaliza el tipo de uso a los valores soportados.
+     *
+     * Se trim + uppercase y valida contra catalogo permitido.
+     *
+     *
+     * @param tipo texto de entrada.
+     * @return tipo en mayusculas o null si no es valido.
+     */
     private String normalizeTipoUso(String tipo) {
         if (tipo == null || tipo.trim().isEmpty()) {
             return null;
@@ -167,6 +233,15 @@ public class ElementoMultimediaServlet extends HttpServlet {
         return null;
     }
 
+    /**
+     * Parsea un entero desde query string.
+     *
+     * Se recorta el texto y se parsea con manejo de NumberFormatException.
+     *
+     *
+     * @param value texto recibido.
+     * @return Integer o null si no es valido.
+     */
     private Integer parseInt(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;
@@ -178,6 +253,15 @@ public class ElementoMultimediaServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Obtiene id_usuario de la sesion si existe.
+     *
+     * Se lee el atributo "id_usuario" y valida tipo Integer.
+     *
+     *
+     * @param request request HTTP actual.
+     * @return id_usuario o null si no hay sesion.
+     */
     private Integer getSessionUserId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -187,6 +271,15 @@ public class ElementoMultimediaServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
+    /**
+     * Obtiene id_rol de la sesion si existe.
+     *
+     * Se lee el atributo "id_rol" y valida tipo Integer.
+     *
+     *
+     * @param request request HTTP actual.
+     * @return id_rol o null si no hay sesion.
+     */
     private Integer getSessionRoleId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -196,6 +289,15 @@ public class ElementoMultimediaServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
+    /**
+     * Determina si el rol corresponde a administrador (id_rol = 1).
+     *
+     * Se usa como regla simple de autorizacion en todos los servlets.
+     *
+     *
+     * @param id_rol id del rol.
+     * @return true si es admin, false en caso contrario.
+     */
     private boolean isAdmin(Integer id_rol) {
         return id_rol != null && id_rol.intValue() == 1;
     }

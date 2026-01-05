@@ -17,9 +17,31 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+/**
+ * Servlet CRUD de usuarios con validacion de permisos (admin vs usuario propio).
+ *
+ * Un admin puede listar/crear/editar/eliminar usuarios. Un usuario normal
+ * solo puede consultar y actualizar su propio registro.
+ *
+ */
 @WebServlet(name = "UsuariosServlet", urlPatterns = {"/api/usuarios"})
 public class UsuariosServlet extends HttpServlet {
 
+    /**
+     * Obtiene un usuario por id o lista todos (solo admin).
+     * No retorna valor; responde 403/404/500 segun permisos o datos.
+     *
+     * Flujo:
+     *
+     * - Si viene id_usuario, valida que sea admin o el propio usuario.
+     * - Si no viene, solo admin puede listar todos.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -29,6 +51,7 @@ public class UsuariosServlet extends HttpServlet {
 
         boolean es_admin = isAdmin(id_rol_sesion);
         if (id_usuario != null) {
+            // Un usuario solo puede ver su propio perfil si no es admin.
             if (!es_admin && !id_usuario.equals(id_usuario_sesion)) {
                 ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
                 return;
@@ -62,6 +85,7 @@ public class UsuariosServlet extends HttpServlet {
             return;
         }
 
+        // Listado completo de usuarios (solo admin).
         String sql = "SELECT u.id_usuario, u.nombre_usuario, u.correo, u.id_rol, r.nombre_rol, "
                 + "u.fecha_creacion, u.fecha_actualizacion "
                 + "FROM usuarios u INNER JOIN roles r ON r.id_rol = u.id_rol "
@@ -82,6 +106,19 @@ public class UsuariosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Crea un usuario nuevo (solo admin).
+     * No retorna valor; responde 400/403/500 segun validaciones.
+     *
+     * Se validan campos obligatorios, se inserta el usuario y
+     * devuelve el id generado.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -102,6 +139,7 @@ public class UsuariosServlet extends HttpServlet {
             return;
         }
 
+        // Inserta usuario y retorna id generado.
         String sql = "INSERT INTO usuarios (nombre_usuario, correo, contrasena, id_rol) VALUES (?,?,?,?)";
         try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -126,6 +164,20 @@ public class UsuariosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Actualiza datos de un usuario. Admin puede modificar rol;
+     * usuario normal solo actualiza su propio registro.
+     * No retorna valor; responde 400/403/404/500 segun validaciones.
+     *
+     * Se valida el id y se aplica la regla de permisos (admin vs propio)
+     * y ejecuta UPDATE. Si no hay filas afectadas, reporta 404.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doPut(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -154,6 +206,7 @@ public class UsuariosServlet extends HttpServlet {
             return;
         }
         if (!es_admin) {
+            // Usuario no admin conserva su rol actual.
             id_rol = id_rol_sesion;
         }
         if (id_rol == null) {
@@ -186,6 +239,18 @@ public class UsuariosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Elimina un usuario por id (solo admin).
+     * No retorna valor; responde 400/403/404/500 segun validaciones.
+     *
+     * Se valida el rol admin, se obtiene el id desde query y se ejecuta DELETE.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -217,6 +282,16 @@ public class UsuariosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Construye el JSON de respuesta para un usuario.
+     *
+     * Se extrae columnas, maneja nulls con JsonUtil y formatea fechas.
+     *
+     *
+     * @param rs ResultSet ya posicionado en un registro valido.
+     * @return builder con los campos del usuario.
+     * @throws Exception si falla la lectura desde el ResultSet.
+     */
     private JsonObjectBuilder buildUsuario(ResultSet rs) throws Exception {
         JsonObjectBuilder usuario = Json.createObjectBuilder();
         usuario.add("id_usuario", rs.getInt("id_usuario"));
@@ -231,6 +306,15 @@ public class UsuariosServlet extends HttpServlet {
         return usuario;
     }
 
+    /**
+     * Parsea un entero desde query string.
+     *
+     * Se recorta el texto y se parsea con manejo de NumberFormatException.
+     *
+     *
+     * @param value texto recibido.
+     * @return Integer o null si no es valido.
+     */
     private Integer parseInt(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;
@@ -242,6 +326,15 @@ public class UsuariosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Obtiene id_usuario de la sesion si existe.
+     *
+     * Se lee el atributo "id_usuario" y valida tipo Integer.
+     *
+     *
+     * @param request request HTTP actual.
+     * @return id_usuario o null si no hay sesion.
+     */
     private Integer getSessionUserId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -251,6 +344,15 @@ public class UsuariosServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
+    /**
+     * Obtiene id_rol de la sesion si existe.
+     *
+     * Se lee el atributo "id_rol" y valida tipo Integer.
+     *
+     *
+     * @param request request HTTP actual.
+     * @return id_rol o null si no hay sesion.
+     */
     private Integer getSessionRoleId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -260,6 +362,15 @@ public class UsuariosServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
+    /**
+     * Determina si el rol corresponde a administrador (id_rol = 1).
+     *
+     * Se usa como regla simple de autorizacion en todos los servlets.
+     *
+     *
+     * @param id_rol id del rol.
+     * @return true si es admin, false en caso contrario.
+     */
     private boolean isAdmin(Integer id_rol) {
         return id_rol != null && id_rol.intValue() == 1;
     }

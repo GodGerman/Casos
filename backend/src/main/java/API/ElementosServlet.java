@@ -19,9 +19,31 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+/**
+ * Servlet CRUD de elementos UML (actores, casos, notas, etc.) por diagrama.
+ *
+ * Controla acceso por sesion y valida propiedad del diagrama al que pertenece
+ * el elemento. Expone operaciones de lectura puntual/listado y alta/baja/cambio.
+ *
+ */
 @WebServlet(name = "ElementosServlet", urlPatterns = {"/api/elementos"})
 public class ElementosServlet extends HttpServlet {
 
+    /**
+     * Obtiene un elemento por id o lista los elementos de un diagrama.
+     * No retorna valor; responde 400/403/404/500 segun validaciones.
+     *
+     * Flujo:
+     *
+     * - Si viene id_elemento, consulta el registro y valida acceso.
+     * - Si no viene, requiere id_diagrama y lista todos sus elementos.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -29,8 +51,10 @@ public class ElementosServlet extends HttpServlet {
         Integer id_rol_sesion = getSessionRoleId(request);
         boolean es_admin = isAdmin(id_rol_sesion);
 
+        // Rama 1: lectura puntual por id_elemento.
         Integer id_elemento = parseInt(request.getParameter("id_elemento"));
         if (id_elemento != null) {
+            // Lectura puntual por id_elemento.
             String sql = "SELECT id_elemento, id_diagrama, id_elemento_padre, tipo_elemento, etiqueta, pos_x, pos_y, "
                     + "ancho, alto, rotacion_grados, orden_z, estilo_json, metadatos_json, fecha_creacion, fecha_actualizacion "
                     + "FROM elementos_diagrama WHERE id_elemento = ?";
@@ -58,6 +82,7 @@ public class ElementosServlet extends HttpServlet {
             return;
         }
 
+        // Rama 2: listado por diagrama.
         Integer id_diagrama = parseInt(request.getParameter("id_diagrama"));
         if (id_diagrama == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "id_diagrama_requerido");
@@ -89,6 +114,19 @@ public class ElementosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Crea un nuevo elemento en un diagrama existente.
+     * No retorna valor; responde 400/403/500 segun validaciones.
+     *
+     * Se validan campos, se fuerza propietario si no es admin,
+     * aplica valores por defecto (posicion, tamanio) e inserta en BD.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -119,6 +157,7 @@ public class ElementosServlet extends HttpServlet {
             return;
         }
 
+        // Valores por defecto para renderizado inicial.
         if (pos_x == null) {
             pos_x = 0;
         }
@@ -138,6 +177,7 @@ public class ElementosServlet extends HttpServlet {
             orden_z = 0;
         }
 
+        // Inserta elemento y devuelve id generado.
         String sql = "INSERT INTO elementos_diagrama (id_diagrama, id_elemento_padre, tipo_elemento, etiqueta, pos_x, pos_y, "
                 + "ancho, alto, rotacion_grados, orden_z, estilo_json, metadatos_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
         try (Connection con = DB.getConnection();
@@ -183,6 +223,19 @@ public class ElementosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Actualiza un elemento existente del diagrama.
+     * No retorna valor; responde 400/403/404/500 segun validaciones.
+     *
+     * Se validan campos obligatorios, se verifica la propiedad del
+     * diagrama y ejecuta UPDATE sobre los campos editables.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doPut(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -214,6 +267,7 @@ public class ElementosServlet extends HttpServlet {
             return;
         }
 
+        // Asegura valores numericos validos para mantener consistencia en UI.
         if (pos_x == null) {
             pos_x = 0;
         }
@@ -233,6 +287,7 @@ public class ElementosServlet extends HttpServlet {
             orden_z = 0;
         }
 
+        // Actualiza campos editables del elemento.
         String sql = "UPDATE elementos_diagrama SET id_diagrama = ?, id_elemento_padre = ?, tipo_elemento = ?, etiqueta = ?, "
                 + "pos_x = ?, pos_y = ?, ancho = ?, alto = ?, rotacion_grados = ?, orden_z = ?, estilo_json = ?, metadatos_json = ? "
                 + "WHERE id_elemento = ?";
@@ -279,6 +334,19 @@ public class ElementosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Elimina un elemento si el usuario es propietario del diagrama.
+     * No retorna valor; responde 400/403/404/500 segun validaciones.
+     *
+     * Se valida el id_elemento, se verifica la propiedad via join y
+     * ejecuta DELETE.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -312,6 +380,17 @@ public class ElementosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Construye el JSON de respuesta para un elemento.
+     *
+     * Se extrae columnas, maneja nulls con JsonUtil y formatea
+     * timestamps como string ISO.
+     *
+     *
+     * @param rs ResultSet posicionado en un registro valido.
+     * @return builder con campos del elemento.
+     * @throws Exception si falla la lectura desde el ResultSet.
+     */
     private JsonObjectBuilder buildElemento(ResultSet rs) throws Exception {
         JsonObjectBuilder elemento = Json.createObjectBuilder();
         elemento.add("id_elemento", rs.getInt("id_elemento"));
@@ -339,6 +418,16 @@ public class ElementosServlet extends HttpServlet {
         return elemento;
     }
 
+    /**
+     * Verifica si el diagrama pertenece al usuario de la sesion.
+     *
+     * Se consulta id_usuario propietario y compara con sesion.
+     *
+     *
+     * @param id_diagrama id del diagrama.
+     * @param id_usuario_sesion id del usuario autenticado.
+     * @return true si es propietario; false si no coincide o hay error.
+     */
     private boolean isOwnerDiagram(int id_diagrama, Integer id_usuario_sesion) {
         if (id_usuario_sesion == null) {
             return false;
@@ -358,6 +447,16 @@ public class ElementosServlet extends HttpServlet {
         return false;
     }
 
+    /**
+     * Verifica si un elemento pertenece a un diagrama del usuario autenticado.
+     *
+     * Se hace join elemento->diagrama y compara propietario.
+     *
+     *
+     * @param id_elemento id del elemento.
+     * @param id_usuario_sesion id del usuario autenticado.
+     * @return true si es propietario; false en caso contrario.
+     */
     private boolean isOwnerElement(int id_elemento, Integer id_usuario_sesion) {
         if (id_usuario_sesion == null) {
             return false;
@@ -379,6 +478,15 @@ public class ElementosServlet extends HttpServlet {
         return false;
     }
 
+    /**
+     * Normaliza el tipo de elemento a los valores soportados.
+     *
+     * Se recorta el texto, se convierte a mayusculas y se compara contra el catalogo permitido.
+     *
+     *
+     * @param tipo texto de entrada.
+     * @return tipo en mayusculas o null si no es valido.
+     */
     private String normalizeTipoElemento(String tipo) {
         if (tipo == null || tipo.trim().isEmpty()) {
             return null;
@@ -396,6 +504,15 @@ public class ElementosServlet extends HttpServlet {
         return null;
     }
 
+    /**
+     * Parsea un entero desde query string.
+     *
+     * Se recorta el texto y se parsea con manejo de NumberFormatException.
+     *
+     *
+     * @param value texto recibido.
+     * @return Integer o null si no es valido.
+     */
     private Integer parseInt(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;
@@ -407,6 +524,15 @@ public class ElementosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Obtiene id_usuario de la sesion si existe.
+     *
+     * Se lee el atributo "id_usuario" y valida tipo Integer.
+     *
+     *
+     * @param request request HTTP actual.
+     * @return id_usuario o null si no hay sesion.
+     */
     private Integer getSessionUserId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -416,6 +542,15 @@ public class ElementosServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
+    /**
+     * Obtiene id_rol de la sesion si existe.
+     *
+     * Se lee el atributo "id_rol" y valida tipo Integer.
+     *
+     *
+     * @param request request HTTP actual.
+     * @return id_rol o null si no hay sesion.
+     */
     private Integer getSessionRoleId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -425,6 +560,15 @@ public class ElementosServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
+    /**
+     * Determina si el rol corresponde a administrador (id_rol = 1).
+     *
+     * Se usa como regla simple de autorizacion en todos los servlets.
+     *
+     *
+     * @param id_rol id del rol.
+     * @return true si es admin, false en caso contrario.
+     */
     private boolean isAdmin(Integer id_rol) {
         return id_rol != null && id_rol.intValue() == 1;
     }

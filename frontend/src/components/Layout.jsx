@@ -1,9 +1,20 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
+/**
+ * Layout base con navbar, contenedor principal y area de contenido.
+ *
+ * Se controla el estado del menu mobile, oculta navbar en /login
+ * y renderiza los children dentro del contenedor principal.
+ *
+ *
+ * @param {{ user: object|null, onLogout: Function, children: React.ReactNode }} props props del layout.
+ * @returns {JSX.Element} estructura base de la UI.
+ */
 export default function Layout({ user, onLogout, children }) {
   const [isNavOpen, setIsNavOpen] = React.useState(false);
   const location = useLocation();
+  // En login se oculta la barra de navegacion para enfocar el acceso.
   const hideNav = location.pathname === '/login';
 
   return (
@@ -21,6 +32,7 @@ export default function Layout({ user, onLogout, children }) {
             <button
               className="navbar-toggler border-0"
               type="button"
+              // Toggle del menu en pantallas pequenas.
               onClick={() => setIsNavOpen(!isNavOpen)}
               aria-controls="navMain"
               aria-expanded={isNavOpen}
@@ -35,6 +47,7 @@ export default function Layout({ user, onLogout, children }) {
                   <Link
                     className={`nav-link ${location.pathname.startsWith('/diagramas') ? 'active' : ''}`}
                     to="/diagramas"
+                    // Cierra el menu al navegar en mobile.
                     onClick={() => setIsNavOpen(false)}
                   >
                     Mis Diagramas

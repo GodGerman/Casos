@@ -4,6 +4,16 @@ import AlertMessage from '../components/AlertMessage.jsx';
 import Loading from '../components/Loading.jsx';
 import { login } from '../services/auth.js';
 
+/**
+ * Pagina de inicio de sesion.
+ *
+ * Se captura credenciales, valida localmente y
+ * llama al endpoint de login; al exito, notifica al padre.
+ *
+ *
+ * @param {{ onLogin: Function }} props callback al autenticar correctamente.
+ * @returns {JSX.Element} formulario de login.
+ */
 export default function LoginPage({ onLogin }) {
   const navigate = useNavigate();
   const [nombre_usuario, set_nombre_usuario] = useState('');
@@ -11,7 +21,7 @@ export default function LoginPage({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Auto-dismiss error after 3 seconds
+  // Autolimpia el error luego de un tiempo para no saturar la UI.
   React.useEffect(() => {
     if (error) {
       const timer = setTimeout(() => {
@@ -21,11 +31,22 @@ export default function LoginPage({ onLogin }) {
     }
   }, [error]);
 
+  /**
+   * Envia credenciales al backend y actualiza estado global.
+   *
+   * @param {Event} event submit del formulario.
+   * @returns {Promise<void>} no retorna valor; navega o muestra error.
+   * En caso de falla de red o credenciales invalidas, actualiza el mensaje de error.
+   *
+   * Se validan inputs, se llama al servicio login y
+   * se construye el objeto user para el estado global.
+   *
+   */
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
 
-    // Validate empty fields
+    // Validacion basica antes de llamar al backend.
     if (!nombre_usuario.trim() || !contrasena.trim()) {
       setError('Ingresa usuario y contrasena.');
       return;
@@ -33,6 +54,7 @@ export default function LoginPage({ onLogin }) {
 
     setLoading(true);
     try {
+      // Llama a /api/auth/login via servicio.
       const result = await login(nombre_usuario.trim(), contrasena.trim());
       if (result && result.ok) {
         onLogin({
@@ -43,7 +65,7 @@ export default function LoginPage({ onLogin }) {
         });
         navigate('/diagramas');
       } else {
-        // Invalid credentials: show error and clear inputs
+        // Credenciales invalidas: muestra error y limpia inputs.
         setError('Credenciales invalidas.');
         set_nombre_usuario('');
         set_contrasena('');

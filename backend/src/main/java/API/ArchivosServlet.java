@@ -24,10 +24,32 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.Part;
 
+/**
+ * Servlet para administrar archivos multimedia: listado, carga y borrado.
+ *
+ * Gestiona tanto el almacenamiento fisico en /uploads como los metadatos
+ * en la tabla archivos_multimedia. Controla acceso por sesion/rol.
+ *
+ */
 @WebServlet(name = "ArchivosServlet", urlPatterns = {"/api/archivos"})
 @MultipartConfig
 public class ArchivosServlet extends HttpServlet {
 
+    /**
+     * Obtiene un archivo por id o lista archivos del usuario.
+     * No retorna valor; responde 400/403/404/500 segun validaciones.
+     *
+     * Flujo:
+     *
+     * - Si viene id_archivo, valida propiedad y devuelve metadatos.
+     * - Si no viene, lista archivos del usuario (o del indicado si admin).
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -35,8 +57,10 @@ public class ArchivosServlet extends HttpServlet {
         Integer id_rol_sesion = getSessionRoleId(request);
         boolean es_admin = isAdmin(id_rol_sesion);
 
+        // Rama 1: lectura puntual por id_archivo.
         Integer id_archivo = parseInt(request.getParameter("id_archivo"));
         if (id_archivo != null) {
+            // Lectura puntual: valida que el usuario sea propietario o admin.
             String sql = "SELECT id_archivo, id_usuario, tipo_media, titulo, descripcion, tamano_bytes, duracion_segundos, "
                     + "ancho, alto, ruta_archivo, fecha_creacion, fecha_actualizacion "
                     + "FROM archivos_multimedia WHERE id_archivo = ?";
@@ -64,6 +88,7 @@ public class ArchivosServlet extends HttpServlet {
             return;
         }
 
+        // Rama 2: listado por usuario; admin puede filtrar por id_usuario.
         Integer id_usuario = parseInt(request.getParameter("id_usuario"));
         if (!es_admin) {
             id_usuario = id_usuario_sesion;
@@ -75,6 +100,7 @@ public class ArchivosServlet extends HttpServlet {
             return;
         }
 
+        // Lista archivos del usuario solicitado.
         String sql = "SELECT id_archivo, id_usuario, tipo_media, titulo, descripcion, tamano_bytes, duracion_segundos, "
                 + "ancho, alto, ruta_archivo, fecha_creacion, fecha_actualizacion "
                 + "FROM archivos_multimedia WHERE id_usuario = ? ORDER BY id_archivo";
@@ -96,6 +122,23 @@ public class ArchivosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Sube un archivo multipart y registra metadatos en BD.
+     * No retorna valor; responde 400/403/500 segun validaciones.
+     *
+     * Flujo:
+     *
+     * - Lee parametros y archivo multipart.
+     * - Valida extension por tipo de media.
+     * - Guarda el archivo en /uploads con nombre unico.
+     * - Inserta metadatos y ruta relativa en BD.
+     *
+     *
+     * @param request request HTTP actual (multipart/form-data).
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la lectura o escritura del archivo.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -123,6 +166,7 @@ public class ArchivosServlet extends HttpServlet {
             return;
         }
 
+        // Valida extension segun tipo multimedia.
         String originalName = getFileName(archivoPart);
         String extension = getExtension(originalName);
         if (!extensionValida(tipo_media, extension)) {
@@ -130,6 +174,7 @@ public class ArchivosServlet extends HttpServlet {
             return;
         }
 
+        // Prepara carpeta de uploads dentro del contexto del servlet.
         String uploadsPath = getServletContext().getRealPath("/uploads");
         File uploadsDir = new File(uploadsPath);
         if (!uploadsDir.exists() && !uploadsDir.mkdirs()) {
@@ -137,6 +182,7 @@ public class ArchivosServlet extends HttpServlet {
             return;
         }
 
+        // Genera nombre unico para evitar colisiones.
         String nombreArchivo = UUID.randomUUID().toString() + "." + extension;
         File destino = new File(uploadsDir, nombreArchivo);
         try (InputStream in = archivoPart.getInputStream()) {
@@ -146,6 +192,7 @@ public class ArchivosServlet extends HttpServlet {
         String ruta_archivo = "uploads/" + nombreArchivo;
         long tamano_bytes = archivoPart.getSize();
 
+        // Inserta metadatos y ruta relativa en BD.
         String sql = "INSERT INTO archivos_multimedia (id_usuario, tipo_media, titulo, descripcion, tamano_bytes, "
                 + "duracion_segundos, ancho, alto, ruta_archivo) VALUES (?,?,?,?,?,?,?,?,?)";
         try (Connection con = DB.getConnection();
@@ -194,6 +241,19 @@ public class ArchivosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Elimina un archivo multimedia (registro y archivo fisico).
+     * No retorna valor; responde 400/403/404/500 segun validaciones.
+     *
+     * Se valida la propiedad, se elimina el registro de BD y luego
+     * borra el archivo fisico si existe en el filesystem.
+     *
+     *
+     * @param request request HTTP actual.
+     * @param response response HTTP actual.
+     * @throws ServletException si el contenedor falla.
+     * @throws IOException si falla la escritura de respuesta.
+     */
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -207,6 +267,7 @@ public class ArchivosServlet extends HttpServlet {
             return;
         }
 
+        // Obtiene propietario y ruta antes de borrar.
         String sqlSelect = "SELECT id_usuario, ruta_archivo FROM archivos_multimedia WHERE id_archivo = ?";
         String sqlDelete = "DELETE FROM archivos_multimedia WHERE id_archivo = ?";
         try (Connection con = DB.getConnection();
@@ -224,11 +285,13 @@ public class ArchivosServlet extends HttpServlet {
                     return;
                 }
 
+                // Borra registro primero para mantener consistencia con BD.
                 try (PreparedStatement psDelete = con.prepareStatement(sqlDelete)) {
                     psDelete.setInt(1, id_archivo.intValue());
                     psDelete.executeUpdate();
                 }
 
+                // Borra archivo fisico si existe.
                 if (ruta != null) {
                     File file = new File(getServletContext().getRealPath("/"), ruta);
                     if (file.exists()) {
@@ -243,6 +306,17 @@ public class ArchivosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Convierte una fila de archivo en JSON agregando URL publica.
+     *
+     * Se construye metadatos y deriva url_publica desde contextPath.
+     *
+     *
+     * @param rs ResultSet posicionado.
+     * @param request request actual para construir URL.
+     * @return builder con metadatos del archivo.
+     * @throws Exception si falla lectura de datos.
+     */
     private JsonObjectBuilder buildArchivo(ResultSet rs, HttpServletRequest request) throws Exception {
         JsonObjectBuilder archivo = Json.createObjectBuilder();
         archivo.add("id_archivo", rs.getInt("id_archivo"));
@@ -283,6 +357,15 @@ public class ArchivosServlet extends HttpServlet {
         return archivo;
     }
 
+    /**
+     * Extrae el nombre del archivo desde el header Content-Disposition.
+     *
+     * Se parsea el header multipart y extrae el valor de filename=.
+     *
+     *
+     * @param part Part del multipart.
+     * @return nombre de archivo o null si no esta presente.
+     */
     private String getFileName(Part part) {
         String header = part.getHeader("content-disposition");
         if (header == null) {
@@ -298,6 +381,15 @@ public class ArchivosServlet extends HttpServlet {
         return null;
     }
 
+    /**
+     * Obtiene la extension de un filename.
+     *
+     * Se busca el ultimo punto y devuelve el sufijo en minusculas.
+     *
+     *
+     * @param filename nombre del archivo.
+     * @return extension en minusculas o cadena vacia si no hay.
+     */
     private String getExtension(String filename) {
         if (filename == null) {
             return "";
@@ -309,6 +401,16 @@ public class ArchivosServlet extends HttpServlet {
         return filename.substring(idx + 1).toLowerCase();
     }
 
+    /**
+     * Valida la extension en funcion del tipo de media.
+     *
+     * Se compara extension contra un whitelist segun tipo_media.
+     *
+     *
+     * @param tipo_media tipo normalizado (AUDIO, VIDEO, IMAGEN).
+     * @param extension extension en minusculas.
+     * @return true si la extension es valida.
+     */
     private boolean extensionValida(String tipo_media, String extension) {
         if (extension == null || extension.isEmpty()) {
             return false;
@@ -325,6 +427,15 @@ public class ArchivosServlet extends HttpServlet {
         return false;
     }
 
+    /**
+     * Normaliza el tipo de media a valores soportados.
+     *
+     * Se recorta el texto, se convierte a mayusculas y se valida contra el catalogo permitido.
+     *
+     *
+     * @param tipo texto recibido.
+     * @return tipo en mayusculas o null si no es valido.
+     */
     private String normalizeTipoMedia(String tipo) {
         if (tipo == null || tipo.trim().isEmpty()) {
             return null;
@@ -336,6 +447,15 @@ public class ArchivosServlet extends HttpServlet {
         return null;
     }
 
+    /**
+     * Parsea un entero desde query string.
+     *
+     * Se recorta el texto y se parsea con manejo de NumberFormatException.
+     *
+     *
+     * @param value texto recibido.
+     * @return Integer o null si no es valido.
+     */
     private Integer parseInt(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;
@@ -347,6 +467,15 @@ public class ArchivosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Parsea un decimal desde query string.
+     *
+     * Se recorta el texto y se parsea con manejo de NumberFormatException.
+     *
+     *
+     * @param value texto recibido.
+     * @return Double o null si no es valido.
+     */
     private Double parseDouble(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;
@@ -358,6 +487,15 @@ public class ArchivosServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Obtiene id_usuario de la sesion si existe.
+     *
+     * Se lee el atributo "id_usuario" y valida tipo Integer.
+     *
+     *
+     * @param request request HTTP actual.
+     * @return id_usuario o null si no hay sesion.
+     */
     private Integer getSessionUserId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -367,6 +505,15 @@ public class ArchivosServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
+    /**
+     * Obtiene id_rol de la sesion si existe.
+     *
+     * Se lee el atributo "id_rol" y valida tipo Integer.
+     *
+     *
+     * @param request request HTTP actual.
+     * @return id_rol o null si no hay sesion.
+     */
     private Integer getSessionRoleId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -376,6 +523,15 @@ public class ArchivosServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
+    /**
+     * Determina si el rol corresponde a administrador (id_rol = 1).
+     *
+     * Se usa como regla simple de autorizacion en todos los servlets.
+     *
+     *
+     * @param id_rol id del rol.
+     * @return true si es admin, false en caso contrario.
+     */
     private boolean isAdmin(Integer id_rol) {
         return id_rol != null && id_rol.intValue() == 1;
     }

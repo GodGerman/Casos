@@ -19,12 +19,14 @@ import {
 import ElementIcon from '../components/ElementIcon.jsx';
 import { validarConexion, validarDiagrama, validarElemento } from '../utils/validators.js';
 
+// Catalogo de estados para el formulario de diagrama.
 const ESTADOS = [
   { value: 'ACTIVO', label: 'Activo' },
   { value: 'BORRADOR', label: 'Borrador' },
   { value: 'ARCHIVADO', label: 'Archivado' }
 ];
 
+// Tipos de conexion soportados por backend y renderer.
 const CONEXIONES = [
   { value: 'ASOCIACION', label: 'Asociación' },
   { value: 'INCLUSION', label: 'Inclusión' },
@@ -34,6 +36,7 @@ const CONEXIONES = [
   { value: 'ENLACE_NOTA', label: 'Enlace Nota' }
 ];
 
+// Tipos de elemento disponibles en el editor.
 const TIPOS_ELEMENTO = [
   { value: 'ACTOR', label: 'Actor' },
   { value: 'CASO_DE_USO', label: 'Caso de Uso' },
@@ -44,9 +47,21 @@ const TIPOS_ELEMENTO = [
   { value: 'IMAGEN', label: 'Imagen' }
 ];
 
+/**
+ * Editor de diagramas UML: canvas, herramientas y propiedades.
+ *
+ * Se carga diagrama/elementos/conexiones desde el backend,
+ * permite crear elementos via drag & drop, moverlos con drag, y editar
+ * propiedades en paneles laterales (desktop) o drawers (mobile).
+ *
+ *
+ * @returns {JSX.Element} pagina completa del editor.
+ */
 export default function DiagramEditorPage() {
   const { id: id_diagrama } = useParams();
+  // Referencia al canvas para calcular offsets y posiciones.
   const canvasRef = useRef(null);
+  // Ref para acceder a elementos durante drag sin re-render sincronico.
   const elementsRef = useRef([]);
 
   const [diagrama, setDiagrama] = useState(null);
@@ -55,12 +70,14 @@ export default function DiagramEditorPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  // dragging guarda el id del elemento y offset del puntero durante el drag.
   const [dragging, setDragging] = useState(null);
   const [selectedElementId, setSelectedElementId] = useState(null);
   const [elementForm, setElementForm] = useState(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState(null);
   const [connectionForm, setConnectionForm] = useState(null);
   const [tipo_conexion, set_tipo_conexion] = useState('ASOCIACION');
+  // Lista temporal de elementos seleccionados para crear una conexion (max 2).
   const [selectedForConnection, setSelectedForConnection] = useState([]);
   const [newConnectionLabel, setNewConnectionLabel] = useState('');
   const [showAdvancedDiagram, setShowAdvancedDiagram] = useState(false);
@@ -70,12 +87,12 @@ export default function DiagramEditorPage() {
   const [showMobileTools, setShowMobileTools] = useState(false);
   const [showMobileProps, setShowMobileProps] = useState(false);
 
-  // Sync ref
+  // Sincroniza la referencia mutable con el ultimo estado para usarla en onUp.
   useEffect(() => {
     elementsRef.current = elementos;
   }, [elementos]);
 
-  // Load selected element into form
+  // Carga el elemento seleccionado en el formulario de propiedades.
   useEffect(() => {
     if (!selectedElementId) {
       setElementForm(null);
@@ -91,7 +108,7 @@ export default function DiagramEditorPage() {
     }
   }, [selectedElementId, elementos]);
 
-  // Load selected connection into form
+  // Carga la conexion seleccionada en el formulario de propiedades.
   useEffect(() => {
     if (!selectedConnectionId) {
       setConnectionForm(null);
@@ -110,11 +127,21 @@ export default function DiagramEditorPage() {
     }
   }, [selectedConnectionId, conexiones]);
 
-  // Filter connection selection candidates
+  // Mantiene seleccion para conexiones solo con elementos existentes.
   useEffect(() => {
     setSelectedForConnection((prev) => prev.filter((idItem) => elementos.some((el) => el.id_elemento === idItem)));
   }, [elementos]);
 
+  /**
+   * Carga diagrama, elementos y conexiones desde el backend.
+   *
+   * @returns {Promise<void>} no retorna valor; actualiza estado local.
+   * Si falla la red o el backend, actualiza el mensaje de error.
+   *
+   * Se llama a tres endpoints (diagrama, elementos, conexiones)
+   * y actualiza el estado en serie para que el canvas tenga datos coherentes.
+   *
+   */
   const cargar = async () => {
     setLoading(true);
     setError('');
@@ -136,11 +163,31 @@ export default function DiagramEditorPage() {
     cargar();
   }, [id_diagrama]);
 
+  /**
+   * Actualiza estado local del diagrama a partir de inputs del formulario.
+   *
+   * @param {Event} event evento de cambio en inputs.
+   * @returns {void} no retorna valor; solo actualiza estado.
+   *
+   * Se usa name/value del input para sobrescribir el campo
+   * correspondiente en el objeto diagrama.
+   *
+   */
   const handleDiagramChange = (event) => {
     const { name, value } = event.target;
     setDiagrama((prev) => ({ ...prev, [name]: value }));
   };
 
+  /**
+   * Guarda cambios de configuracion del diagrama.
+   *
+   * @returns {Promise<void>} no retorna valor; muestra mensaje de exito/error.
+   * Si falla la validacion o el backend rechaza, muestra el error.
+   *
+   * Se validan campos locales, se normalizan tipos numericos y
+   * se llama al endpoint de actualizacion.
+   *
+   */
   const handleGuardarDiagrama = async () => {
     if (!diagrama) return;
     setError('');
@@ -166,6 +213,17 @@ export default function DiagramEditorPage() {
     }
   };
 
+  /**
+   * Crea un elemento al soltar desde la paleta sobre el canvas.
+   *
+   * @param {DragEvent} event evento de drop.
+   * @returns {Promise<void>} no retorna valor; actualiza elementos.
+   * Si el backend falla, actualiza el mensaje de error.
+   *
+   * Se lee el tipo desde dataTransfer, calcula posicion relativa
+   * al canvas con getBoundingClientRect y envía el payload al backend.
+   *
+   */
   const handleDrop = async (event) => {
     event.preventDefault();
     const tipo_elemento = event.dataTransfer.getData('tipo_elemento');
@@ -174,14 +232,20 @@ export default function DiagramEditorPage() {
     }
     if (!diagrama || !canvasRef.current) return;
 
-    // Adjust coordinates based on scroll/offset
+    // Ajusta coordenadas segun posicion del canvas en pantalla.
     const rect = canvasRef.current.getBoundingClientRect();
 
-    // Simple calculation: mouse pos relative to canvas container + scroll
+    // Posicion relativa dentro del canvas.
     const pos_x = Math.max(0, event.clientX - rect.left);
     const pos_y = Math.max(0, event.clientY - rect.top);
 
-    // Default dimensions by type
+    // Dimensiones por defecto segun tipo de elemento.
+    /**
+     * Calcula dimensiones base para el tipo de elemento.
+     *
+     * @param {string} type tipo de elemento UML.
+     * @returns {{w: number, h: number}} dimensiones recomendadas.
+     */
     const getDefaultDimensions = (type) => {
       switch (type) {
         case 'ACTOR': return { w: 60, h: 100 };
@@ -224,10 +288,30 @@ export default function DiagramEditorPage() {
     }
   };
 
+  /**
+   * Permite que el canvas acepte elementos drag & drop.
+   *
+   * @param {DragEvent} event evento de dragover.
+   * @returns {void} no retorna valor; solo evita el comportamiento default.
+   *
+   * Se llama a preventDefault para habilitar el drop en el canvas.
+   *
+   */
   const handleDragOver = (event) => {
     event.preventDefault();
   };
 
+  /**
+   * Inicia el drag de un elemento existente en el canvas.
+   *
+   * @param {MouseEvent} event evento de mouse down.
+   * @param {object} elemento elemento seleccionado.
+   * @returns {void} no retorna valor; prepara estado de drag.
+   *
+   * Se calcula el offset del puntero respecto al elemento
+   * para mantener la misma distancia durante el movimiento.
+   *
+   */
   const handleElementMouseDown = (event, elemento) => {
     event.preventDefault();
     event.stopPropagation();
@@ -241,6 +325,17 @@ export default function DiagramEditorPage() {
     setSelectedElementId(elemento.id_elemento);
   };
 
+  /**
+   * Selecciona un elemento para edicion de propiedades.
+   *
+   * @param {MouseEvent} event evento de click.
+   * @param {object} elemento elemento seleccionado.
+   * @returns {void} no retorna valor; actualiza estado de seleccion.
+   *
+   * Se evita propagacion para no perder seleccion
+   * y guarda el id del elemento en el estado.
+   *
+   */
   const handleElementClick = (event, elemento) => {
     event.stopPropagation();
     setSelectedElementId(elemento.id_elemento);
@@ -249,6 +344,16 @@ export default function DiagramEditorPage() {
   useEffect(() => {
     if (!dragging) return undefined;
 
+    /**
+     * Actualiza la posicion del elemento durante el drag.
+     *
+     * @param {MouseEvent|TouchEvent} event evento de movimiento.
+     * @returns {void} no retorna valor; actualiza estado.
+     *
+     * Se calcula coordenadas relativas al canvas y
+     * actualiza el elemento en memoria para dar feedback inmediato.
+     *
+     */
     const onMove = (event) => {
       if (!canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
@@ -266,6 +371,15 @@ export default function DiagramEditorPage() {
       )));
     };
 
+    /**
+     * Persiste la nueva posicion al finalizar el drag.
+     *
+     * @returns {Promise<void>} no retorna valor; actualiza backend.
+     *
+     * Se toma el elemento desde elementsRef (evita stale state)
+     * y llama al endpoint de actualizacion.
+     *
+     */
     const onUp = async () => {
       const elemento = elementsRef.current.find((el) => el.id_elemento === dragging.id_elemento);
       setDragging(null);
@@ -292,11 +406,31 @@ export default function DiagramEditorPage() {
     };
   }, [dragging]);
 
+  /**
+   * Actualiza el formulario de propiedades del elemento.
+   *
+   * @param {Event} event evento de cambio en input/select.
+   * @returns {void} no retorna valor; solo actualiza estado local.
+   *
+   * Se usa name/value del input para sobrescribir el campo
+   * correspondiente del formulario.
+   *
+   */
   const handleElementFormChange = (event) => {
     const { name, value } = event.target;
     setElementForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  /**
+   * Guarda cambios del elemento seleccionado en el backend.
+   *
+   * @returns {Promise<void>} no retorna valor; recarga elementos.
+   * Si falla la validacion o el backend rechaza, muestra el error.
+   *
+   * Se validan JSONs opcionales, se normalizan numeros y
+   * se persiste el elemento via servicio de actualizacion.
+   *
+   */
   const handleGuardarElemento = async () => {
     if (!elementForm) return;
     const errores = validarElemento(elementForm);
@@ -322,6 +456,16 @@ export default function DiagramEditorPage() {
     }
   };
 
+  /**
+   * Elimina el elemento seleccionado del diagrama.
+   *
+   * @returns {Promise<void>} no retorna valor; actualiza estado local.
+   * Si el backend falla, actualiza el mensaje de error.
+   *
+   * Se confirma con el usuario, llama al endpoint de borrado
+   * y recarga el listado para mantener consistencia.
+   *
+   */
   const handleEliminarElemento = async () => {
     if (!selectedElementId) return;
     if (!window.confirm('¿Deseas eliminar el elemento seleccionado?')) return;
@@ -335,6 +479,16 @@ export default function DiagramEditorPage() {
     }
   };
 
+  /**
+   * Alterna un elemento dentro de la seleccion para crear conexiones.
+   *
+   * @param {number} id_elemento id del elemento a seleccionar/deseleccionar.
+   * @returns {void} no retorna valor; actualiza seleccion en memoria.
+   *
+   * Se mantiene un array de max 2 elementos y alterna el id
+   * para facilitar la creacion de una conexion.
+   *
+   */
   const toggleConnectionSelection = (id_elemento) => {
     setSelectedForConnection((prev) => {
       if (prev.includes(id_elemento)) return prev.filter((id) => id !== id_elemento);
@@ -343,6 +497,16 @@ export default function DiagramEditorPage() {
     });
   };
 
+  /**
+   * Crea una nueva conexion entre dos elementos seleccionados.
+   *
+   * @returns {Promise<void>} no retorna valor; limpia seleccion.
+   * Si falta seleccion o el backend falla, muestra el error.
+   *
+   * Se valida que haya 2 elementos seleccionados, se prepara
+   * el payload con etiqueta opcional y persiste via backend.
+   *
+   */
   const handleCrearConexion = async () => {
     if (selectedForConnection.length !== 2) {
       setError('Selecciona dos elementos para conectar.');
@@ -367,15 +531,42 @@ export default function DiagramEditorPage() {
     }
   };
 
+  /**
+   * Selecciona una conexion para editarla.
+   *
+   * @param {object} conexion conexion seleccionada.
+   * @returns {void} no retorna valor; actualiza estado de seleccion.
+   *
+   * Se guarda el id de la conexion para cargar el formulario.
+   *
+   */
   const handleConnectionSelect = (conexion) => {
     setSelectedConnectionId(conexion.id_conexion);
   };
 
+  /**
+   * Actualiza el formulario de propiedades de conexion.
+   *
+   * @param {Event} event evento de cambio en input/select.
+   * @returns {void} no retorna valor; solo actualiza estado local.
+   *
+   * Se usa name/value para actualizar el objeto del formulario.
+   *
+   */
   const handleConnectionFormChange = (event) => {
     const { name, value } = event.target;
     setConnectionForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  /**
+   * Guarda cambios de la conexion seleccionada.
+   *
+   * @returns {Promise<void>} no retorna valor; recarga conexiones.
+   * Si falla la validacion o el backend rechaza, muestra el error.
+   *
+   * Se validan JSONs opcionales, se normalizan ids y se persiste la conexion via API.
+   *
+   */
   const handleGuardarConexion = async () => {
     if (!connectionForm || !diagrama) return;
     const errores = validarConexion(connectionForm);
@@ -401,6 +592,17 @@ export default function DiagramEditorPage() {
     }
   };
 
+  /**
+   * Elimina una conexion por id.
+   *
+   * @param {number} id_conexion id de la conexion a eliminar.
+   * @returns {Promise<void>} no retorna valor; actualiza listado.
+   * Si el backend falla, actualiza el mensaje de error.
+   *
+   * Se confirma con el usuario, llama al endpoint de borrado
+   * y limpia la seleccion si corresponde.
+   *
+   */
   const handleEliminarConexion = async (id_conexion) => {
     if (!window.confirm('¿Eliminar esta conexión?')) return;
     try {
@@ -415,7 +617,15 @@ export default function DiagramEditorPage() {
     }
   };
 
-  // Left Sidebar Content (reusable)
+  /**
+   * Renderiza el contenido del sidebar izquierdo.
+   *
+   * @returns {JSX.Element} herramientas y creacion de conexiones.
+   *
+   * Se muestra la paleta de elementos y la UI para crear
+   * relaciones, reutilizando el estado de seleccion.
+   *
+   */
   const LeftSidebarContent = () => (
     <>
       <div className="p-3 border-bottom border-dark-700">
@@ -430,7 +640,7 @@ export default function DiagramEditorPage() {
       <div className="flex-grow-1 overflow-y-auto p-3">
         <Palette />
 
-        {/* Connection Tool */}
+        {/* Herramienta para crear conexiones entre elementos */}
         <div className="card shadow-sm border-0 bg-dark-800 mt-3">
           <div className="card-header bg-transparent border-dark-700 py-2">
             <span className="text-xs text-uppercase text-secondary fw-bold">Crear Relación</span>
@@ -458,7 +668,15 @@ export default function DiagramEditorPage() {
     </>
   );
 
-  // Right Sidebar Content (reusable)
+  /**
+   * Renderiza el contenido del sidebar derecho.
+   *
+   * @returns {JSX.Element} propiedades del elemento/conexion y lista de capas.
+   *
+   * Se alterna entre paneles de propiedades segun la seleccion
+   * y muestra un listado de capas para navegar/seleccionar elementos.
+   *
+   */
   const RightSidebarContent = () => (
     <>
       {/* Dynamic Property Inspector */}
