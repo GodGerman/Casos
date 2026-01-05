@@ -8,11 +8,9 @@ API\AuthFilter.class
 API\ElementosServlet.class
 API\AuthServlet.class
 API\UsuariosServlet.class
-API\DbConfig.class
 API\JsonUtil.class
 API\AuthService.class
 API\ElementoMultimediaServlet.class
 API\DiagramaMultimediaServlet.class
 API\DiagramasServlet.class
-API\DbUtil.class
 API\Login.class
