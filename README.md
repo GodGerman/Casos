@@ -30,7 +30,7 @@ Datos iniciales:
 
 ## Backend (Java Servlets)
 Utilidades:
-- `API/DbConfig.java` lee DB desde variables de entorno o propiedades:
+- `API/DB.java` lee DB desde variables de entorno o propiedades:
   - `DB_URL` / `db.url`
   - `DB_USER` / `db.user`
   - `DB_PASS` / `db.pass`
@@ -76,7 +76,7 @@ Build:
 
 ## Ejecucion local
 1. Crear BD: `mysql -u root -p < frontend/Base.sql`.
-2. Configurar credenciales en `DbConfig` o variables de entorno.
+2. Configurar credenciales en `DB` o variables de entorno.
 3. Desplegar el backend en Tomcat desde NetBeans.
 4. Servir el frontend desde el mismo Tomcat (copiando `dist`).
 

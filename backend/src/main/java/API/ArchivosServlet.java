@@ -31,22 +31,22 @@ public class ArchivosServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
-        Integer idArchivo = parseInt(request.getParameter("id_archivo"));
-        if (idArchivo != null) {
+        Integer id_archivo = parseInt(request.getParameter("id_archivo"));
+        if (id_archivo != null) {
             String sql = "SELECT id_archivo, id_usuario, tipo_media, titulo, descripcion, tamano_bytes, duracion_segundos, "
                     + "ancho, alto, ruta_archivo, fecha_creacion, fecha_actualizacion "
                     + "FROM archivos_multimedia WHERE id_archivo = ?";
-            try (Connection con = DbUtil.getConnection();
+            try (Connection con = DB.getConnection();
                  PreparedStatement ps = con.prepareStatement(sql)) {
-                ps.setInt(1, idArchivo.intValue());
+                ps.setInt(1, id_archivo.intValue());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        int ownerId = rs.getInt("id_usuario");
-                        if (!admin && (sessionUserId == null || ownerId != sessionUserId.intValue())) {
+                        int id_usuario_propietario = rs.getInt("id_usuario");
+                        if (!es_admin && (id_usuario_sesion == null || id_usuario_propietario != id_usuario_sesion.intValue())) {
                             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
                             return;
                         }
@@ -64,11 +64,13 @@ public class ArchivosServlet extends HttpServlet {
             return;
         }
 
-        Integer idUsuario = parseInt(request.getParameter("id_usuario"));
-        if (!admin) {
-            idUsuario = sessionUserId;
+        Integer id_usuario = parseInt(request.getParameter("id_usuario"));
+        if (!es_admin) {
+            id_usuario = id_usuario_sesion;
+        } else if (id_usuario == null) {
+            id_usuario = id_usuario_sesion;
         }
-        if (idUsuario == null) {
+        if (id_usuario == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
@@ -76,9 +78,9 @@ public class ArchivosServlet extends HttpServlet {
         String sql = "SELECT id_archivo, id_usuario, tipo_media, titulo, descripcion, tamano_bytes, duracion_segundos, "
                 + "ancho, alto, ruta_archivo, fecha_creacion, fecha_actualizacion "
                 + "FROM archivos_multimedia WHERE id_usuario = ? ORDER BY id_archivo";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idUsuario.intValue());
+            ps.setInt(1, id_usuario.intValue());
             try (ResultSet rs = ps.executeQuery()) {
                 JsonArrayBuilder archivos = Json.createArrayBuilder();
                 while (rs.next()) {
@@ -97,31 +99,33 @@ public class ArchivosServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
-        Integer idUsuario = parseInt(request.getParameter("id_usuario"));
-        if (!admin) {
-            idUsuario = sessionUserId;
+        Integer id_usuario = parseInt(request.getParameter("id_usuario"));
+        if (!es_admin) {
+            id_usuario = id_usuario_sesion;
+        } else if (id_usuario == null) {
+            id_usuario = id_usuario_sesion;
         }
-        String tipoMedia = normalizeTipoMedia(request.getParameter("tipo_media"));
+        String tipo_media = normalizeTipoMedia(request.getParameter("tipo_media"));
         String titulo = request.getParameter("titulo");
         String descripcion = request.getParameter("descripcion");
         Integer ancho = parseInt(request.getParameter("ancho"));
         Integer alto = parseInt(request.getParameter("alto"));
         String duracion = request.getParameter("duracion_segundos");
-        Double duracionSegundos = parseDouble(duracion);
+        Double duracion_segundos = parseDouble(duracion);
 
         Part archivoPart = request.getPart("archivo");
-        if (idUsuario == null || tipoMedia == null || archivoPart == null) {
+        if (id_usuario == null || tipo_media == null || archivoPart == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "datos_incompletos");
             return;
         }
 
         String originalName = getFileName(archivoPart);
         String extension = getExtension(originalName);
-        if (!extensionValida(tipoMedia, extension)) {
+        if (!extensionValida(tipo_media, extension)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "extension_invalida");
             return;
         }
@@ -139,15 +143,15 @@ public class ArchivosServlet extends HttpServlet {
             Files.copy(in, destino.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
 
-        String rutaRelativa = "uploads/" + nombreArchivo;
-        long tamanoBytes = archivoPart.getSize();
+        String ruta_archivo = "uploads/" + nombreArchivo;
+        long tamano_bytes = archivoPart.getSize();
 
         String sql = "INSERT INTO archivos_multimedia (id_usuario, tipo_media, titulo, descripcion, tamano_bytes, "
                 + "duracion_segundos, ancho, alto, ruta_archivo) VALUES (?,?,?,?,?,?,?,?,?)";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setInt(1, idUsuario.intValue());
-            ps.setString(2, tipoMedia);
+            ps.setInt(1, id_usuario.intValue());
+            ps.setString(2, tipo_media);
             if (titulo == null || titulo.trim().isEmpty()) {
                 ps.setNull(3, Types.VARCHAR);
             } else {
@@ -158,11 +162,11 @@ public class ArchivosServlet extends HttpServlet {
             } else {
                 ps.setString(4, descripcion);
             }
-            ps.setLong(5, tamanoBytes);
-            if (duracionSegundos == null) {
+            ps.setLong(5, tamano_bytes);
+            if (duracion_segundos == null) {
                 ps.setNull(6, Types.DECIMAL);
             } else {
-                ps.setDouble(6, duracionSegundos.doubleValue());
+                ps.setDouble(6, duracion_segundos.doubleValue());
             }
             if (ancho == null) {
                 ps.setNull(7, Types.INTEGER);
@@ -174,12 +178,12 @@ public class ArchivosServlet extends HttpServlet {
             } else {
                 ps.setInt(8, alto.intValue());
             }
-            ps.setString(9, rutaRelativa);
+            ps.setString(9, ruta_archivo);
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 JsonObjectBuilder body = Json.createObjectBuilder()
                         .add("ok", true)
-                        .add("ruta_archivo", rutaRelativa);
+                        .add("ruta_archivo", ruta_archivo);
                 if (keys.next()) {
                     body.add("id_archivo", keys.getInt(1));
                 }
@@ -193,35 +197,35 @@ public class ArchivosServlet extends HttpServlet {
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
-        Integer idArchivo = parseInt(request.getParameter("id_archivo"));
-        if (idArchivo == null) {
+        Integer id_archivo = parseInt(request.getParameter("id_archivo"));
+        if (id_archivo == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "id_archivo_requerido");
             return;
         }
 
         String sqlSelect = "SELECT id_usuario, ruta_archivo FROM archivos_multimedia WHERE id_archivo = ?";
         String sqlDelete = "DELETE FROM archivos_multimedia WHERE id_archivo = ?";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement psSelect = con.prepareStatement(sqlSelect)) {
-            psSelect.setInt(1, idArchivo.intValue());
+            psSelect.setInt(1, id_archivo.intValue());
             try (ResultSet rs = psSelect.executeQuery()) {
                 if (!rs.next()) {
                     ResponseUtil.writeError(response, HttpServletResponse.SC_NOT_FOUND, "archivo_no_encontrado");
                     return;
                 }
-                int ownerId = rs.getInt("id_usuario");
+                int id_usuario_propietario = rs.getInt("id_usuario");
                 String ruta = rs.getString("ruta_archivo");
-                if (!admin && (sessionUserId == null || ownerId != sessionUserId.intValue())) {
+                if (!es_admin && (id_usuario_sesion == null || id_usuario_propietario != id_usuario_sesion.intValue())) {
                     ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
                     return;
                 }
 
                 try (PreparedStatement psDelete = con.prepareStatement(sqlDelete)) {
-                    psDelete.setInt(1, idArchivo.intValue());
+                    psDelete.setInt(1, id_archivo.intValue());
                     psDelete.executeUpdate();
                 }
 
@@ -305,17 +309,17 @@ public class ArchivosServlet extends HttpServlet {
         return filename.substring(idx + 1).toLowerCase();
     }
 
-    private boolean extensionValida(String tipoMedia, String extension) {
+    private boolean extensionValida(String tipo_media, String extension) {
         if (extension == null || extension.isEmpty()) {
             return false;
         }
-        if ("AUDIO".equals(tipoMedia)) {
+        if ("AUDIO".equals(tipo_media)) {
             return "mp3".equals(extension);
         }
-        if ("VIDEO".equals(tipoMedia)) {
+        if ("VIDEO".equals(tipo_media)) {
             return "mp4".equals(extension);
         }
-        if ("IMAGEN".equals(tipoMedia)) {
+        if ("IMAGEN".equals(tipo_media)) {
             return "jpg".equals(extension) || "jpeg".equals(extension);
         }
         return false;
@@ -372,7 +376,7 @@ public class ArchivosServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
-    private boolean isAdmin(Integer idRol) {
-        return idRol != null && idRol.intValue() == 1;
+    private boolean isAdmin(Integer id_rol) {
+        return id_rol != null && id_rol.intValue() == 1;
     }
 }

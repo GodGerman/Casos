@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function Layout({ user, onLogout, children }) {
+  const [isNavOpen, setIsNavOpen] = React.useState(false);
   const location = useLocation();
   const hideNav = location.pathname === '/login';
 
@@ -20,21 +21,21 @@ export default function Layout({ user, onLogout, children }) {
             <button
               className="navbar-toggler border-0"
               type="button"
-              data-bs-toggle="collapse"
-              data-bs-target="#navMain"
+              onClick={() => setIsNavOpen(!isNavOpen)}
               aria-controls="navMain"
-              aria-expanded="false"
+              aria-expanded={isNavOpen}
               aria-label="Toggle navigation"
             >
               <span className="navbar-toggler-icon" style={{ filter: 'invert(1)' }} />
             </button>
 
-            <div className="collapse navbar-collapse" id="navMain">
+            <div className={`collapse navbar-collapse ${isNavOpen ? 'show' : ''}`} id="navMain">
               <ul className="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
                 <li className="nav-item">
                   <Link
                     className={`nav-link ${location.pathname.startsWith('/diagramas') ? 'active' : ''}`}
                     to="/diagramas"
+                    onClick={() => setIsNavOpen(false)}
                   >
                     Mis Diagramas
                   </Link>
@@ -42,8 +43,8 @@ export default function Layout({ user, onLogout, children }) {
               </ul>
 
               {user && (
-                <div className="d-flex align-items-center gap-3">
-                  <div className="d-flex flex-column align-items-end d-none d-lg-flex">
+                <div className="d-flex flex-lg-row flex-column align-items-lg-center gap-3 mt-3 mt-lg-0">
+                  <div className="d-flex flex-column align-items-lg-end text-lg-end">
                     <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                       {user.nombre_usuario}
                     </span>
@@ -53,7 +54,7 @@ export default function Layout({ user, onLogout, children }) {
                   </div>
 
                   <button
-                    className="btn btn-outline-danger btn-sm"
+                    className="btn btn-outline-danger btn-sm d-flex align-items-center gap-2"
                     type="button"
                     onClick={onLogout}
                     title="Cerrar sesión"
@@ -63,6 +64,7 @@ export default function Layout({ user, onLogout, children }) {
                       <polyline points="16 17 21 12 16 7" />
                       <line x1="21" y1="12" x2="9" y2="12" />
                     </svg>
+                    <span className="d-lg-none">Cerrar Sesión</span>
                   </button>
                 </div>
               )}

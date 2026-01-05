@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import ElementIcon from './ElementIcon.jsx';
+import UMLElement from './canvas/UMLElement.jsx';
 
 const CONNECTION_STYLE = {
   ASOCIACION: { dash: null, marker: null },
@@ -132,32 +132,55 @@ export default function Canvas({
             ) : null
           ))}
         </svg>
-        {elements.map((el) => (
-          <div
-            key={el.id_elemento}
-            className={`diagram-element ${toTypeClass(el.tipo_elemento)} ${selectedElementId === el.id_elemento ? 'selected shadow-glow' : ''}`}
-            style={{
-              position: 'absolute',
-              left: el.pos_x,
-              top: el.pos_y,
-              width: el.ancho,
-              height: el.alto,
-              transform: el.rotacion_grados ? `rotate(${el.rotacion_grados}deg)` : undefined,
-              zIndex: el.orden_z || 10
-            }}
-            onMouseDown={(event) => onElementMouseDown(event, el)}
-            onClick={(event) => onElementClick(event, el)}
-          >
-            <div className="element-icon">
-              <ElementIcon type={el.tipo_elemento} size={22} className={selectedElementId === el.id_elemento ? 'text-cyan-400' : ''} />
+
+        {elements.map((el) => {
+          const isSelected = selectedElementId === el.id_elemento;
+          return (
+            <div
+              key={el.id_elemento}
+              className={`diagram-element-wrapper ${selectedElementId === el.id_elemento ? 'selected' : ''}`}
+              style={{
+                position: 'absolute',
+                left: el.pos_x,
+                top: el.pos_y,
+                width: el.ancho,
+                height: el.alto,
+                transform: el.rotacion_grados ? `rotate(${el.rotacion_grados}deg)` : undefined,
+                zIndex: el.orden_z || 10,
+                cursor: 'grab'
+              }}
+              onMouseDown={(event) => onElementMouseDown(event, el)}
+              onClick={(event) => onElementClick(event, el)}
+            >
+              <div style={{ pointerEvents: 'none', width: '100%', height: '100%' }}>
+                <UMLElement
+                  element={el}
+                  isSelected={isSelected}
+                  width={el.ancho}
+                  height={el.alto}
+                />
+              </div>
+
+              {/* Label handling - Outside SVG for text wrapping if needed, or specific per type */}
+              <div
+                className="position-absolute w-100 text-center pointer-events-none"
+                style={{
+                  top: el.tipo_elemento === 'ACTOR' ? '100%' : '50%',
+                  left: 0,
+                  transform: el.tipo_elemento === 'ACTOR' ? 'translateY(5px)' : 'translateY(-50%)',
+                  padding: '0 4px',
+                  lineHeight: '1.2'
+                }}
+              >
+                <span className={`text-xs ${el.tipo_elemento === 'NOTA' ? 'text-start d-block p-2' : ''} ${el.tipo_elemento === 'ACTOR' ? '' : 'text-truncate d-block'}`}
+                  style={{ color: 'var(--text-primary)', whiteSpace: el.tipo_elemento === 'NOTA' ? 'pre-wrap' : 'nowrap' }}>
+                  {el.etiqueta || (el.tipo_elemento === 'TEXTO' ? 'Texto' : '')}
+                </span>
+              </div>
             </div>
-            <div className="element-content">
-              <div className="element-type">{el.tipo_elemento.replace(/_/g, ' ')}</div>
-              <div className="element-label text-truncate" style={{ maxWidth: '100%' }}>{el.etiqueta || '(sin etiqueta)'}</div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-    </div>
+    </div >
   );
 }

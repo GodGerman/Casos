@@ -1,90 +1,115 @@
 package API;
 
-import java.io.*;
-import java.sql.*;
+import java.io.IOException;
+import java.io.Serializable;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
-public class DB implements java.io.Serializable {
+public class DB implements Serializable {
+    private static String getValue(String env_key, String prop_key, String fallback) {
+        String value = System.getenv(env_key);
+        if (value == null || value.trim().isEmpty()) {
+            value = System.getProperty(prop_key);
+        }
+        if (value == null || value.trim().isEmpty()) {
+            return fallback;
+        }
+        return value.trim();
+    }
+
+    public static final String DRIVER = "com.mysql.cj.jdbc.Driver";
+    public static final String URL = getValue(
+            "DB_URL",
+            "db.url",
+            "jdbc:mysql://localhost:3306/aplicacion?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8"
+    );
+    public static final String USER = getValue("DB_USER", "db.user", "root");
+    public static final String PASS = getValue("DB_PASS", "db.pass", "2005");
+
+    static {
+        try {
+            Class.forName(DRIVER);
+        } catch (ClassNotFoundException ex) {
+            throw new ExceptionInInitializerError(ex);
+        }
+    }
+
     private String url;
     private String driver;
-    private transient Connection con;
-    private Statement stmtquery;
-    private Statement stmtupdate;
-    private ResultSet rs;
+    private transient Connection conexion;
+    private Statement stmt_query;
+    private Statement stmt_update;
+    private ResultSet result_set;
 
-    public void setConnection(String driver, String url)
-            throws IOException, java.sql.SQLException {
+    public void setConnection(String db_driver, String db_url) throws IOException, SQLException {
         try {
-            Class.forName(driver);
-            con = DriverManager.getConnection(url, "root", "1234"); // CONTRASEÑA
-            this.url = url;
-            this.driver = driver;
+            Class.forName(db_driver);
+            conexion = DriverManager.getConnection(db_url, USER, PASS);
+            this.url = db_url;
+            this.driver = db_driver;
         } catch (ClassNotFoundException e) {
             throw new IOException(e.getMessage());
-        } catch (java.sql.SQLException e) {
-            throw e;
         }
-
     }
 
-    public void closeConnection()
-            throws java.sql.SQLException {
-        if (con != null) {
-            con.close();
+    public void setConnection() throws IOException, SQLException {
+        setConnection(DRIVER, URL);
+    }
+
+    public void closeConnection() throws SQLException {
+        if (conexion != null) {
+            conexion.close();
         }
         url = driver = null;
-        if (stmtupdate != null) {
-            stmtupdate.close();
+        if (stmt_update != null) {
+            stmt_update.close();
         }
-        if (stmtquery != null) {
-            stmtquery.close();
+        if (stmt_query != null) {
+            stmt_query.close();
         }
-        stmtupdate = stmtquery = null;
-        rs = null;
-
+        stmt_update = stmt_query = null;
+        result_set = null;
     }
-    
-    //------------------------------------------
-    public int executeUpdate(String sql)
-            throws java.sql.SQLException {
-        if (con == null) {
+
+    public int executeUpdate(String sql) throws SQLException {
+        if (conexion == null) {
             throw new SQLException("No ha configurado correctamente la conexion Source:Bean handledb");
         }
 
-        stmtupdate = null;
-        int affecrows = 0;
+        stmt_update = null;
+        int affected_rows = 0;
 
         try {
-            stmtupdate = con.createStatement();
-            affecrows = stmtupdate.executeUpdate(sql);
+            stmt_update = conexion.createStatement();
+            affected_rows = stmt_update.executeUpdate(sql);
         } finally {
-            if (stmtupdate != null) {
-                stmtupdate.close();
+            if (stmt_update != null) {
+                stmt_update.close();
             }
         }
-        return affecrows;
+        return affected_rows;
     }
 
-    //-----------------------------------------
-    public ResultSet executeQuery(String sql)
-            throws java.sql.SQLException {
-        if (con == null) {
+    public ResultSet executeQuery(String sql) throws SQLException {
+        if (conexion == null) {
             throw new SQLException("No ha configurado correctamente la conexion Source:Bean handledb");
         }
 
-        stmtquery = null;
-        rs = null;
+        stmt_query = null;
+        result_set = null;
 
-        try {
-            stmtquery = con.createStatement();
-            rs = stmtquery.executeQuery(sql);
-
-        } finally {
-
-        }
-        return rs;
+        stmt_query = conexion.createStatement();
+        result_set = stmt_query.executeQuery(sql);
+        return result_set;
     }
-    
-    //---------------------------------------------
+
+    public static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(URL, USER, PASS);
+    }
+
     public String getUrl() {
         return url;
     }

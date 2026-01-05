@@ -24,22 +24,22 @@ public class DiagramasServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
-        Integer idDiagrama = parseInt(request.getParameter("id_diagrama"));
-        if (idDiagrama != null) {
+        Integer id_diagrama = parseInt(request.getParameter("id_diagrama"));
+        if (id_diagrama != null) {
             String sql = "SELECT id_diagrama, id_usuario, nombre, descripcion, estado, ancho_lienzo, alto_lienzo, "
                     + "configuracion_json, fecha_creacion, fecha_actualizacion "
                     + "FROM diagramas_uml WHERE id_diagrama = ?";
-            try (Connection con = DbUtil.getConnection();
+            try (Connection con = DB.getConnection();
                  PreparedStatement ps = con.prepareStatement(sql)) {
-                ps.setInt(1, idDiagrama.intValue());
+                ps.setInt(1, id_diagrama.intValue());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        int ownerId = rs.getInt("id_usuario");
-                        if (!admin && (sessionUserId == null || ownerId != sessionUserId.intValue())) {
+                        int id_usuario_propietario = rs.getInt("id_usuario");
+                        if (!es_admin && (id_usuario_sesion == null || id_usuario_propietario != id_usuario_sesion.intValue())) {
                             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
                             return;
                         }
@@ -57,11 +57,11 @@ public class DiagramasServlet extends HttpServlet {
             return;
         }
 
-        Integer idUsuario = parseInt(request.getParameter("id_usuario"));
-        if (!admin) {
-            idUsuario = sessionUserId;
+        Integer id_usuario = parseInt(request.getParameter("id_usuario"));
+        if (!es_admin) {
+            id_usuario = id_usuario_sesion;
         }
-        if (idUsuario == null && !admin) {
+        if (id_usuario == null && !es_admin) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
@@ -69,15 +69,15 @@ public class DiagramasServlet extends HttpServlet {
         String sql = "SELECT id_diagrama, id_usuario, nombre, descripcion, estado, ancho_lienzo, alto_lienzo, "
                 + "configuracion_json, fecha_creacion, fecha_actualizacion "
                 + "FROM diagramas_uml ";
-        if (idUsuario != null) {
+        if (id_usuario != null) {
             sql += "WHERE id_usuario = ? ";
         }
         sql += "ORDER BY id_diagrama";
 
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            if (idUsuario != null) {
-                ps.setInt(1, idUsuario.intValue());
+            if (id_usuario != null) {
+                ps.setInt(1, id_usuario.intValue());
             }
             try (ResultSet rs = ps.executeQuery()) {
                 JsonArrayBuilder diagramas = Json.createArrayBuilder();
@@ -97,41 +97,43 @@ public class DiagramasServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
         JsonObject payload = JsonUtil.readJsonObject(request);
-        Integer idUsuario = JsonUtil.getInt(payload, "id_usuario");
+        Integer id_usuario = JsonUtil.getInt(payload, "id_usuario");
         String nombre = JsonUtil.getString(payload, "nombre");
         String descripcion = JsonUtil.getString(payload, "descripcion");
         String estado = normalizeEstado(JsonUtil.getString(payload, "estado"));
-        Integer ancho = JsonUtil.getInt(payload, "ancho_lienzo");
-        Integer alto = JsonUtil.getInt(payload, "alto_lienzo");
-        String configuracion = JsonUtil.getString(payload, "configuracion_json");
+        Integer ancho_lienzo = JsonUtil.getInt(payload, "ancho_lienzo");
+        Integer alto_lienzo = JsonUtil.getInt(payload, "alto_lienzo");
+        String configuracion_json = JsonUtil.getString(payload, "configuracion_json");
 
-        if (!admin) {
-            idUsuario = sessionUserId;
+        if (!es_admin) {
+            id_usuario = id_usuario_sesion;
+        } else if (id_usuario == null) {
+            id_usuario = id_usuario_sesion;
         }
-        if (idUsuario == null || nombre == null) {
+        if (id_usuario == null || nombre == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "datos_incompletos");
             return;
         }
         if (estado == null) {
             estado = "ACTIVO";
         }
-        if (ancho == null) {
-            ancho = 1280;
+        if (ancho_lienzo == null) {
+            ancho_lienzo = 1280;
         }
-        if (alto == null) {
-            alto = 720;
+        if (alto_lienzo == null) {
+            alto_lienzo = 720;
         }
 
         String sql = "INSERT INTO diagramas_uml (id_usuario, nombre, descripcion, estado, ancho_lienzo, alto_lienzo, "
                 + "configuracion_json) VALUES (?,?,?,?,?,?,?)";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setInt(1, idUsuario.intValue());
+            ps.setInt(1, id_usuario.intValue());
             ps.setString(2, nombre);
             if (descripcion == null || descripcion.trim().isEmpty()) {
                 ps.setNull(3, Types.LONGVARCHAR);
@@ -139,12 +141,12 @@ public class DiagramasServlet extends HttpServlet {
                 ps.setString(3, descripcion);
             }
             ps.setString(4, estado);
-            ps.setInt(5, ancho.intValue());
-            ps.setInt(6, alto.intValue());
-            if (configuracion == null || configuracion.trim().isEmpty()) {
+            ps.setInt(5, ancho_lienzo.intValue());
+            ps.setInt(6, alto_lienzo.intValue());
+            if (configuracion_json == null || configuracion_json.trim().isEmpty()) {
                 ps.setNull(7, Types.LONGVARCHAR);
             } else {
-                ps.setString(7, configuracion);
+                ps.setString(7, configuracion_json);
             }
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
@@ -162,39 +164,39 @@ public class DiagramasServlet extends HttpServlet {
     @Override
     protected void doPut(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
         JsonObject payload = JsonUtil.readJsonObject(request);
-        Integer idDiagrama = JsonUtil.getInt(payload, "id_diagrama");
+        Integer id_diagrama = JsonUtil.getInt(payload, "id_diagrama");
         String nombre = JsonUtil.getString(payload, "nombre");
         String descripcion = JsonUtil.getString(payload, "descripcion");
         String estado = normalizeEstado(JsonUtil.getString(payload, "estado"));
-        Integer ancho = JsonUtil.getInt(payload, "ancho_lienzo");
-        Integer alto = JsonUtil.getInt(payload, "alto_lienzo");
-        String configuracion = JsonUtil.getString(payload, "configuracion_json");
+        Integer ancho_lienzo = JsonUtil.getInt(payload, "ancho_lienzo");
+        Integer alto_lienzo = JsonUtil.getInt(payload, "alto_lienzo");
+        String configuracion_json = JsonUtil.getString(payload, "configuracion_json");
 
-        if (idDiagrama == null || nombre == null) {
+        if (id_diagrama == null || nombre == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "datos_incompletos");
             return;
         }
         if (estado == null) {
             estado = "ACTIVO";
         }
-        if (ancho == null || alto == null) {
+        if (ancho_lienzo == null || alto_lienzo == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "dimensiones_requeridas");
             return;
         }
 
-        if (!admin && !isOwnerDiagram(idDiagrama.intValue(), sessionUserId)) {
+        if (!es_admin && !isOwnerDiagram(id_diagrama.intValue(), id_usuario_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
 
         String sql = "UPDATE diagramas_uml SET nombre = ?, descripcion = ?, estado = ?, ancho_lienzo = ?, alto_lienzo = ?, "
                 + "configuracion_json = ? WHERE id_diagrama = ?";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, nombre);
             if (descripcion == null || descripcion.trim().isEmpty()) {
@@ -203,14 +205,14 @@ public class DiagramasServlet extends HttpServlet {
                 ps.setString(2, descripcion);
             }
             ps.setString(3, estado);
-            ps.setInt(4, ancho.intValue());
-            ps.setInt(5, alto.intValue());
-            if (configuracion == null || configuracion.trim().isEmpty()) {
+            ps.setInt(4, ancho_lienzo.intValue());
+            ps.setInt(5, alto_lienzo.intValue());
+            if (configuracion_json == null || configuracion_json.trim().isEmpty()) {
                 ps.setNull(6, Types.LONGVARCHAR);
             } else {
-                ps.setString(6, configuracion);
+                ps.setString(6, configuracion_json);
             }
-            ps.setInt(7, idDiagrama.intValue());
+            ps.setInt(7, id_diagrama.intValue());
             int updated = ps.executeUpdate();
             if (updated == 0) {
                 ResponseUtil.writeError(response, HttpServletResponse.SC_NOT_FOUND, "diagrama_no_encontrado");
@@ -226,24 +228,24 @@ public class DiagramasServlet extends HttpServlet {
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
-        Integer idDiagrama = parseInt(request.getParameter("id_diagrama"));
-        if (idDiagrama == null) {
+        Integer id_diagrama = parseInt(request.getParameter("id_diagrama"));
+        if (id_diagrama == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "id_diagrama_requerido");
             return;
         }
-        if (!admin && !isOwnerDiagram(idDiagrama.intValue(), sessionUserId)) {
+        if (!es_admin && !isOwnerDiagram(id_diagrama.intValue(), id_usuario_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
 
         String sql = "DELETE FROM diagramas_uml WHERE id_diagrama = ?";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idDiagrama.intValue());
+            ps.setInt(1, id_diagrama.intValue());
             int deleted = ps.executeUpdate();
             if (deleted == 0) {
                 ResponseUtil.writeError(response, HttpServletResponse.SC_NOT_FOUND, "diagrama_no_encontrado");
@@ -273,17 +275,17 @@ public class DiagramasServlet extends HttpServlet {
         return diagrama;
     }
 
-    private boolean isOwnerDiagram(int idDiagrama, Integer sessionUserId) {
-        if (sessionUserId == null) {
+    private boolean isOwnerDiagram(int id_diagrama, Integer id_usuario_sesion) {
+        if (id_usuario_sesion == null) {
             return false;
         }
         String sql = "SELECT id_usuario FROM diagramas_uml WHERE id_diagrama = ?";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idDiagrama);
+            ps.setInt(1, id_diagrama);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getInt("id_usuario") == sessionUserId.intValue();
+                    return rs.getInt("id_usuario") == id_usuario_sesion.intValue();
                 }
             }
         } catch (Exception ex) {
@@ -332,7 +334,7 @@ public class DiagramasServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
-    private boolean isAdmin(Integer idRol) {
-        return idRol != null && idRol.intValue() == 1;
+    private boolean isAdmin(Integer id_rol) {
+        return id_rol != null && id_rol.intValue() == 1;
     }
 }

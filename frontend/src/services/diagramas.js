@@ -4,8 +4,8 @@ export function listarDiagramas() {
   return get('/api/diagramas');
 }
 
-export function obtenerDiagrama(idDiagrama) {
-  return get(`/api/diagramas?id_diagrama=${idDiagrama}`);
+export function obtenerDiagrama(id_diagrama) {
+  return get(`/api/diagramas?id_diagrama=${id_diagrama}`);
 }
 
 export function crearDiagrama(payload) {
@@ -16,12 +16,12 @@ export function actualizarDiagrama(payload) {
   return put('/api/diagramas', payload);
 }
 
-export function eliminarDiagrama(idDiagrama) {
-  return del(`/api/diagramas?id_diagrama=${idDiagrama}`);
+export function eliminarDiagrama(id_diagrama) {
+  return del(`/api/diagramas?id_diagrama=${id_diagrama}`);
 }
 
-export function listarElementos(idDiagrama) {
-  return get(`/api/elementos?id_diagrama=${idDiagrama}`);
+export function listarElementos(id_diagrama) {
+  return get(`/api/elementos?id_diagrama=${id_diagrama}`);
 }
 
 export function crearElemento(payload) {
@@ -32,12 +32,12 @@ export function actualizarElemento(payload) {
   return put('/api/elementos', payload);
 }
 
-export function eliminarElemento(idElemento) {
-  return del(`/api/elementos?id_elemento=${idElemento}`);
+export function eliminarElemento(id_elemento) {
+  return del(`/api/elementos?id_elemento=${id_elemento}`);
 }
 
-export function listarConexiones(idDiagrama) {
-  return get(`/api/conexiones?id_diagrama=${idDiagrama}`);
+export function listarConexiones(id_diagrama) {
+  return get(`/api/conexiones?id_diagrama=${id_diagrama}`);
 }
 
 export function crearConexion(payload) {
@@ -48,8 +48,8 @@ export function actualizarConexion(payload) {
   return put('/api/conexiones', payload);
 }
 
-export function eliminarConexion(idConexion) {
-  return del(`/api/conexiones?id_conexion=${idConexion}`);
+export function eliminarConexion(id_conexion) {
+  return del(`/api/conexiones?id_conexion=${id_conexion}`);
 }
 
 export function subirArchivo(formData) {
@@ -60,34 +60,34 @@ export function listarArchivos() {
   return get('/api/archivos');
 }
 
-export function obtenerArchivo(idArchivo) {
-  return get(`/api/archivos?id_archivo=${idArchivo}`);
+export function obtenerArchivo(id_archivo) {
+  return get(`/api/archivos?id_archivo=${id_archivo}`);
 }
 
-export function eliminarArchivo(idArchivo) {
-  return del(`/api/archivos?id_archivo=${idArchivo}`);
+export function eliminarArchivo(id_archivo) {
+  return del(`/api/archivos?id_archivo=${id_archivo}`);
 }
 
-export function listarDiagramaMultimedia(idDiagrama) {
-  return get(`/api/diagrama-multimedia?id_diagrama=${idDiagrama}`);
+export function listarDiagramaMultimedia(id_diagrama) {
+  return get(`/api/diagrama-multimedia?id_diagrama=${id_diagrama}`);
 }
 
 export function agregarDiagramaMultimedia(payload) {
   return post('/api/diagrama-multimedia', payload);
 }
 
-export function eliminarDiagramaMultimedia(idDiagrama, idArchivo) {
-  return del(`/api/diagrama-multimedia?id_diagrama=${idDiagrama}&id_archivo=${idArchivo}`);
+export function eliminarDiagramaMultimedia(id_diagrama, id_archivo) {
+  return del(`/api/diagrama-multimedia?id_diagrama=${id_diagrama}&id_archivo=${id_archivo}`);
 }
 
-export function listarElementoMultimedia(idElemento) {
-  return get(`/api/elemento-multimedia?id_elemento=${idElemento}`);
+export function listarElementoMultimedia(id_elemento) {
+  return get(`/api/elemento-multimedia?id_elemento=${id_elemento}`);
 }
 
 export function agregarElementoMultimedia(payload) {
   return post('/api/elemento-multimedia', payload);
 }
 
-export function eliminarElementoMultimedia(idElemento, idArchivo) {
-  return del(`/api/elemento-multimedia?id_elemento=${idElemento}&id_archivo=${idArchivo}`);
+export function eliminarElementoMultimedia(id_elemento, id_archivo) {
+  return del(`/api/elemento-multimedia?id_elemento=${id_elemento}&id_archivo=${id_archivo}`);
 }

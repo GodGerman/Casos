@@ -29,22 +29,22 @@ public class AuthServlet extends HttpServlet {
         }
 
         JsonObject payload = JsonUtil.readJsonObject(request);
-        String nombreUsuario = JsonUtil.getString(payload, "nombre_usuario");
+        String nombre_usuario = JsonUtil.getString(payload, "nombre_usuario");
         String contrasena = JsonUtil.getString(payload, "contrasena");
-        if (nombreUsuario == null) {
-            nombreUsuario = request.getParameter("nombre_usuario");
+        if (nombre_usuario == null) {
+            nombre_usuario = request.getParameter("nombre_usuario");
         }
         if (contrasena == null) {
             contrasena = request.getParameter("contrasena");
         }
 
-        if (nombreUsuario == null || contrasena == null) {
+        if (nombre_usuario == null || contrasena == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "credenciales_incompletas");
             return;
         }
 
         try {
-            AuthService.AuthResult result = AuthService.authenticate(nombreUsuario, contrasena);
+            AuthService.AuthResult result = AuthService.authenticate(nombre_usuario, contrasena);
             if (result == null) {
                 ResponseUtil.writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "credenciales_invalidas");
                 return;
@@ -54,10 +54,10 @@ public class AuthServlet extends HttpServlet {
 
             JsonObjectBuilder builder = Json.createObjectBuilder()
                     .add("ok", true)
-                    .add("id_usuario", result.idUsuario)
-                    .add("id_rol", result.idRol)
-                    .add("nombre_usuario", result.nombreUsuario)
-                    .add("nombre_rol", result.nombreRol);
+                    .add("id_usuario", result.id_usuario)
+                    .add("id_rol", result.id_rol)
+                    .add("nombre_usuario", result.nombre_usuario)
+                    .add("nombre_rol", result.nombre_rol);
             ResponseUtil.writeOk(response, builder.build());
         } catch (Exception ex) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "error_autenticacion");

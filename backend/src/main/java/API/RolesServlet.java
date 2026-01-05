@@ -21,7 +21,7 @@ public class RolesServlet extends HttpServlet {
             throws ServletException, IOException {
         JsonArrayBuilder roles = Json.createArrayBuilder();
         String sql = "SELECT id_rol, nombre_rol, descripcion FROM roles ORDER BY id_rol";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {

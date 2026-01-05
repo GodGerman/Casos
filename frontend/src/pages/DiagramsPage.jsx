@@ -83,7 +83,7 @@ export default function DiagramsPage() {
     }
   };
 
-  const handleDelete = async (e, id) => {
+  const handleDelete = async (e, id_diagrama) => {
     e.preventDefault(); // prevent link navigation if inside a link
     e.stopPropagation();
     if (!window.confirm('¿Deseas eliminar este diagrama permanentemente?')) {
@@ -92,7 +92,7 @@ export default function DiagramsPage() {
     setError('');
     setSuccess('');
     try {
-      await eliminarDiagrama(id);
+      await eliminarDiagrama(id_diagrama);
       setSuccess('Diagrama eliminado.');
       await cargar();
     } catch (err) {

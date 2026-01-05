@@ -15,8 +15,10 @@ export default function AlertMessage({ type = 'info', message }) {
     type === 'success' ? 'alert-success' :
       type === 'warning' ? 'alert-warning' : 'alert-info';
 
+  const toastClass = props.toast ? 'alert-toast' : '';
+
   return (
-    <div className={`alert ${alertClass} d-flex align-items-start gap-3 shadow-sm border-0`} role="alert">
+    <div className={`alert ${alertClass} ${toastClass} d-flex align-items-center gap-3 shadow-sm border-0`} role="alert">
       <div className="flex-shrink-0 mt-1 opacity-75">{icon}</div>
       <div className="flex-grow-1 text-sm">{message}</div>
     </div>

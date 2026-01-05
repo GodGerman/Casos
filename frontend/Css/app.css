@@ -68,7 +68,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at top right, var(--bg-dark-800), var(--bg-dark-900));
+  background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.7)), url('../img/img.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .login-card {
@@ -100,39 +104,19 @@
   color: var(--primary-400);
 }
 
-/* Diagram Elements */
-.diagram-element {
-  background: var(--bg-dark-800);
-  border: 2px solid var(--primary-500);
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: var(--text-primary);
-  box-shadow: var(--shadow-md);
-  transition: all 0.2s ease;
+/* Diagram Elements Wrapper - mostly structural now */
+.diagram-element-wrapper {
+  /* No default background/border, handled by SVG */
+  transition: transform 0.1s ease;
 }
 
-.diagram-element:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary-400);
+.diagram-element-wrapper:hover {
+  /* Only slight lift or outline on hover if desired, but SVG handles most */
 }
 
-.diagram-element.selected {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.3);
-}
-
-.diagram-element .element-type {
-  color: var(--primary-300);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.diagram-element .element-label {
-  color: var(--text-primary);
-  font-weight: 500;
+.diagram-element-wrapper.selected {
+  /* Selection handled visually by SVG or a bounding box */
+  outline: 1px dashed var(--primary-400);
 }
 
 /* Connections */
@@ -359,4 +343,56 @@
 .mobile-toolbar-btn svg {
   width: 24px;
   height: 24px;
+}
+
+/* Toast Notifications */
+.alert-toast {
+  position: fixed;
+  top: 20px;
+  right: 50%;
+  transform: translateX(50%);
+  z-index: 1060;
+  min-width: 300px;
+  padding: 1rem 1.5rem;
+  border-radius: 50px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  animation: slideDownFade 0.4s ease-out forwards;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translate(50%, -20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(50%, 0);
+  }
+}
+
+.alert-toast.alert-danger {
+  background-color: rgba(220, 38, 38, 0.9);
+  color: white;
+  border-color: rgba(220, 38, 38, 0.5);
+}
+
+.alert-toast.alert-success {
+  background-color: rgba(22, 163, 74, 0.9);
+  color: white;
+  border-color: rgba(22, 163, 74, 0.5);
+}
+
+.alert-toast.alert-info {
+  background-color: rgba(37, 99, 235, 0.9);
+  color: white;
+  border-color: rgba(37, 99, 235, 0.5);
+}
+
+.alert-toast.alert-warning {
+  background-color: rgba(202, 138, 4, 0.9);
+  color: white;
+  border-color: rgba(202, 138, 4, 0.5);
 }

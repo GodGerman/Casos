@@ -27,33 +27,35 @@ public class Login extends HttpServlet {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
-        String usuario = request.getParameter("User");
-        if (usuario == null) {
-            usuario = request.getParameter("nombre_usuario");
+        String nombre_usuario = request.getParameter("User");
+        if (nombre_usuario == null) {
+            nombre_usuario = request.getParameter("nombre_usuario");
         }
-        String password = request.getParameter("password");
-        if (password == null) {
-            password = request.getParameter("contrasena");
+        String contrasena = request.getParameter("password");
+        if (contrasena == null) {
+            contrasena = request.getParameter("contrasena");
         }
 
-        if (usuario == null || password == null) {
+        if (nombre_usuario == null || contrasena == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "credenciales_incompletas");
             return;
         }
 
         try {
-            AuthService.AuthResult result = AuthService.authenticate(usuario, password);
+            AuthService.AuthResult result = AuthService.authenticate(nombre_usuario, contrasena);
             JsonObjectBuilder body = Json.createObjectBuilder();
             if (result != null) {
                 AuthService.applySession(request, result);
                 body.add("status", "yes")
-                        .add("tipo", result.nombreRol)
-                        .add("id_usuario", result.idUsuario)
-                        .add("id_rol", result.idRol)
-                        .add("nombre_usuario", result.nombreUsuario);
+                        .add("tipo", result.nombre_rol)
+                        .add("nombre_rol", result.nombre_rol)
+                        .add("id_usuario", result.id_usuario)
+                        .add("id_rol", result.id_rol)
+                        .add("nombre_usuario", result.nombre_usuario);
             } else {
                 body.add("status", "no")
-                        .add("tipo", "nodefinido");
+                        .add("tipo", "nodefinido")
+                        .add("nombre_rol", "nodefinido");
             }
             ResponseUtil.writeOk(response, body.build());
         } catch (Exception ex) {

@@ -21,16 +21,16 @@ public class ElementoMultimediaServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
-        Integer idElemento = parseInt(request.getParameter("id_elemento"));
-        if (idElemento == null) {
+        Integer id_elemento = parseInt(request.getParameter("id_elemento"));
+        if (id_elemento == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "id_elemento_requerido");
             return;
         }
-        if (!admin && !isOwnerElement(idElemento.intValue(), sessionUserId)) {
+        if (!es_admin && !isOwnerElement(id_elemento.intValue(), id_usuario_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
@@ -40,9 +40,9 @@ public class ElementoMultimediaServlet extends HttpServlet {
                 + "FROM elemento_multimedia em "
                 + "INNER JOIN archivos_multimedia am ON am.id_archivo = em.id_archivo "
                 + "WHERE em.id_elemento = ? ORDER BY em.id_archivo";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idElemento.intValue());
+            ps.setInt(1, id_elemento.intValue());
             try (ResultSet rs = ps.executeQuery()) {
                 JsonArrayBuilder items = Json.createArrayBuilder();
                 while (rs.next()) {
@@ -68,30 +68,30 @@ public class ElementoMultimediaServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
         JsonObject payload = JsonUtil.readJsonObject(request);
-        Integer idElemento = JsonUtil.getInt(payload, "id_elemento");
-        Integer idArchivo = JsonUtil.getInt(payload, "id_archivo");
-        String tipoUso = normalizeTipoUso(JsonUtil.getString(payload, "tipo_uso"));
+        Integer id_elemento = JsonUtil.getInt(payload, "id_elemento");
+        Integer id_archivo = JsonUtil.getInt(payload, "id_archivo");
+        String tipo_uso = normalizeTipoUso(JsonUtil.getString(payload, "tipo_uso"));
 
-        if (idElemento == null || idArchivo == null || tipoUso == null) {
+        if (id_elemento == null || id_archivo == null || tipo_uso == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "datos_incompletos");
             return;
         }
-        if (!admin && !isOwnerElement(idElemento.intValue(), sessionUserId)) {
+        if (!es_admin && !isOwnerElement(id_elemento.intValue(), id_usuario_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
 
         String sql = "INSERT INTO elemento_multimedia (id_elemento, id_archivo, tipo_uso) VALUES (?,?,?)";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idElemento.intValue());
-            ps.setInt(2, idArchivo.intValue());
-            ps.setString(3, tipoUso);
+            ps.setInt(1, id_elemento.intValue());
+            ps.setInt(2, id_archivo.intValue());
+            ps.setString(3, tipo_uso);
             ps.executeUpdate();
             JsonObjectBuilder body = Json.createObjectBuilder().add("ok", true);
             ResponseUtil.writeOk(response, body.build());
@@ -103,26 +103,26 @@ public class ElementoMultimediaServlet extends HttpServlet {
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
-        Integer idElemento = parseInt(request.getParameter("id_elemento"));
-        Integer idArchivo = parseInt(request.getParameter("id_archivo"));
-        if (idElemento == null || idArchivo == null) {
+        Integer id_elemento = parseInt(request.getParameter("id_elemento"));
+        Integer id_archivo = parseInt(request.getParameter("id_archivo"));
+        if (id_elemento == null || id_archivo == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "datos_incompletos");
             return;
         }
-        if (!admin && !isOwnerElement(idElemento.intValue(), sessionUserId)) {
+        if (!es_admin && !isOwnerElement(id_elemento.intValue(), id_usuario_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
 
         String sql = "DELETE FROM elemento_multimedia WHERE id_elemento = ? AND id_archivo = ?";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idElemento.intValue());
-            ps.setInt(2, idArchivo.intValue());
+            ps.setInt(1, id_elemento.intValue());
+            ps.setInt(2, id_archivo.intValue());
             int deleted = ps.executeUpdate();
             if (deleted == 0) {
                 ResponseUtil.writeError(response, HttpServletResponse.SC_NOT_FOUND, "relacion_no_encontrada");
@@ -135,19 +135,19 @@ public class ElementoMultimediaServlet extends HttpServlet {
         }
     }
 
-    private boolean isOwnerElement(int idElemento, Integer sessionUserId) {
-        if (sessionUserId == null) {
+    private boolean isOwnerElement(int id_elemento, Integer id_usuario_sesion) {
+        if (id_usuario_sesion == null) {
             return false;
         }
         String sql = "SELECT d.id_usuario FROM diagramas_uml d "
                 + "INNER JOIN elementos_diagrama e ON e.id_diagrama = d.id_diagrama "
                 + "WHERE e.id_elemento = ?";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idElemento);
+            ps.setInt(1, id_elemento);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getInt("id_usuario") == sessionUserId.intValue();
+                    return rs.getInt("id_usuario") == id_usuario_sesion.intValue();
                 }
             }
         } catch (Exception ex) {
@@ -196,7 +196,7 @@ public class ElementoMultimediaServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
-    private boolean isAdmin(Integer idRol) {
-        return idRol != null && idRol.intValue() == 1;
+    private boolean isAdmin(Integer id_rol) {
+        return id_rol != null && id_rol.intValue() == 1;
     }
 }

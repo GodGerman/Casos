@@ -12,7 +12,7 @@ import { buildFileUrl } from '../services/api.js';
 import { obtenerTipoMedia, validarArchivo } from '../utils/validators.js';
 
 export default function MediaManagerPage() {
-  const { id } = useParams();
+  const { id: id_diagrama } = useParams();
   const [multimedia, setMultimedia] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -22,7 +22,7 @@ export default function MediaManagerPage() {
     setLoading(true);
     setError('');
     try {
-      const data = await listarDiagramaMultimedia(id);
+      const data = await listarDiagramaMultimedia(id_diagrama);
       setMultimedia(data.multimedia || []);
     } catch (err) {
       setError(err?.data?.mensaje || 'No se pudo cargar el contenido multimedia.');
@@ -33,7 +33,7 @@ export default function MediaManagerPage() {
 
   useEffect(() => {
     cargar();
-  }, [id]);
+  }, [id_diagrama]);
 
   const handleFiles = async (files) => {
     if (!files || files.length === 0) {
@@ -47,16 +47,16 @@ export default function MediaManagerPage() {
       setError(validacion.mensaje);
       return;
     }
-    const tipoMedia = obtenerTipoMedia(file);
+    const tipo_media = obtenerTipoMedia(file);
     try {
       const formData = new FormData();
       formData.append('archivo', file);
-      formData.append('tipo_media', tipoMedia);
+      formData.append('tipo_media', tipo_media);
       formData.append('titulo', file.name);
       const result = await subirArchivo(formData);
       if (result?.id_archivo) {
         await agregarDiagramaMultimedia({
-          id_diagrama: Number(id),
+          id_diagrama: Number(id_diagrama),
           id_archivo: result.id_archivo,
           descripcion: null,
           orden: 0
@@ -74,12 +74,12 @@ export default function MediaManagerPage() {
     handleFiles(event.dataTransfer.files);
   };
 
-  const handleDelete = async (idArchivo) => {
+  const handleDelete = async (id_archivo) => {
     if (!window.confirm('Eliminar esta asociacion?')) {
       return;
     }
     try {
-      await eliminarDiagramaMultimedia(id, idArchivo);
+      await eliminarDiagramaMultimedia(id_diagrama, id_archivo);
       await cargar();
     } catch (err) {
       setError(err?.data?.mensaje || 'No se pudo eliminar la asociacion.');
@@ -89,7 +89,7 @@ export default function MediaManagerPage() {
   return (
     <div className="row g-4">
       <div className="col-12">
-        <Link to={`/diagramas/${id}`} className="btn btn-outline-secondary btn-sm">
+        <Link to={`/diagramas/${id_diagrama}`} className="btn btn-outline-secondary btn-sm">
           Volver al editor
         </Link>
       </div>

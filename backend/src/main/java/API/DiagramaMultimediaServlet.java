@@ -22,16 +22,16 @@ public class DiagramaMultimediaServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
-        Integer idDiagrama = parseInt(request.getParameter("id_diagrama"));
-        if (idDiagrama == null) {
+        Integer id_diagrama = parseInt(request.getParameter("id_diagrama"));
+        if (id_diagrama == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "id_diagrama_requerido");
             return;
         }
-        if (!admin && !isOwnerDiagram(idDiagrama.intValue(), sessionUserId)) {
+        if (!es_admin && !isOwnerDiagram(id_diagrama.intValue(), id_usuario_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
@@ -41,9 +41,9 @@ public class DiagramaMultimediaServlet extends HttpServlet {
                 + "FROM diagrama_multimedia dm "
                 + "INNER JOIN archivos_multimedia am ON am.id_archivo = dm.id_archivo "
                 + "WHERE dm.id_diagrama = ? ORDER BY dm.orden, dm.id_archivo";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idDiagrama.intValue());
+            ps.setInt(1, id_diagrama.intValue());
             try (ResultSet rs = ps.executeQuery()) {
                 JsonArrayBuilder items = Json.createArrayBuilder();
                 while (rs.next()) {
@@ -70,21 +70,21 @@ public class DiagramaMultimediaServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
         JsonObject payload = JsonUtil.readJsonObject(request);
-        Integer idDiagrama = JsonUtil.getInt(payload, "id_diagrama");
-        Integer idArchivo = JsonUtil.getInt(payload, "id_archivo");
+        Integer id_diagrama = JsonUtil.getInt(payload, "id_diagrama");
+        Integer id_archivo = JsonUtil.getInt(payload, "id_archivo");
         String descripcion = JsonUtil.getString(payload, "descripcion");
         Integer orden = JsonUtil.getInt(payload, "orden");
 
-        if (idDiagrama == null || idArchivo == null) {
+        if (id_diagrama == null || id_archivo == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "datos_incompletos");
             return;
         }
-        if (!admin && !isOwnerDiagram(idDiagrama.intValue(), sessionUserId)) {
+        if (!es_admin && !isOwnerDiagram(id_diagrama.intValue(), id_usuario_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
@@ -93,10 +93,10 @@ public class DiagramaMultimediaServlet extends HttpServlet {
         }
 
         String sql = "INSERT INTO diagrama_multimedia (id_diagrama, id_archivo, descripcion, orden) VALUES (?,?,?,?)";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idDiagrama.intValue());
-            ps.setInt(2, idArchivo.intValue());
+            ps.setInt(1, id_diagrama.intValue());
+            ps.setInt(2, id_archivo.intValue());
             if (descripcion == null || descripcion.trim().isEmpty()) {
                 ps.setNull(3, Types.VARCHAR);
             } else {
@@ -114,26 +114,26 @@ public class DiagramaMultimediaServlet extends HttpServlet {
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
 
-        Integer idDiagrama = parseInt(request.getParameter("id_diagrama"));
-        Integer idArchivo = parseInt(request.getParameter("id_archivo"));
-        if (idDiagrama == null || idArchivo == null) {
+        Integer id_diagrama = parseInt(request.getParameter("id_diagrama"));
+        Integer id_archivo = parseInt(request.getParameter("id_archivo"));
+        if (id_diagrama == null || id_archivo == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "datos_incompletos");
             return;
         }
-        if (!admin && !isOwnerDiagram(idDiagrama.intValue(), sessionUserId)) {
+        if (!es_admin && !isOwnerDiagram(id_diagrama.intValue(), id_usuario_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
 
         String sql = "DELETE FROM diagrama_multimedia WHERE id_diagrama = ? AND id_archivo = ?";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idDiagrama.intValue());
-            ps.setInt(2, idArchivo.intValue());
+            ps.setInt(1, id_diagrama.intValue());
+            ps.setInt(2, id_archivo.intValue());
             int deleted = ps.executeUpdate();
             if (deleted == 0) {
                 ResponseUtil.writeError(response, HttpServletResponse.SC_NOT_FOUND, "relacion_no_encontrada");
@@ -146,17 +146,17 @@ public class DiagramaMultimediaServlet extends HttpServlet {
         }
     }
 
-    private boolean isOwnerDiagram(int idDiagrama, Integer sessionUserId) {
-        if (sessionUserId == null) {
+    private boolean isOwnerDiagram(int id_diagrama, Integer id_usuario_sesion) {
+        if (id_usuario_sesion == null) {
             return false;
         }
         String sql = "SELECT id_usuario FROM diagramas_uml WHERE id_diagrama = ?";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idDiagrama);
+            ps.setInt(1, id_diagrama);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getInt("id_usuario") == sessionUserId.intValue();
+                    return rs.getInt("id_usuario") == id_usuario_sesion.intValue();
                 }
             }
         } catch (Exception ex) {
@@ -194,7 +194,7 @@ public class DiagramaMultimediaServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
-    private boolean isAdmin(Integer idRol) {
-        return idRol != null && idRol.intValue() == 1;
+    private boolean isAdmin(Integer id_rol) {
+        return id_rol != null && id_rol.intValue() == 1;
     }
 }

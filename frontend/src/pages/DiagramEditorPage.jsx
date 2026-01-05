@@ -45,7 +45,7 @@ const TIPOS_ELEMENTO = [
 ];
 
 export default function DiagramEditorPage() {
-  const { id } = useParams();
+  const { id: id_diagrama } = useParams();
   const canvasRef = useRef(null);
   const elementsRef = useRef([]);
 
@@ -60,7 +60,7 @@ export default function DiagramEditorPage() {
   const [elementForm, setElementForm] = useState(null);
   const [selectedConnectionId, setSelectedConnectionId] = useState(null);
   const [connectionForm, setConnectionForm] = useState(null);
-  const [connectionType, setConnectionType] = useState('ASOCIACION');
+  const [tipo_conexion, set_tipo_conexion] = useState('ASOCIACION');
   const [selectedForConnection, setSelectedForConnection] = useState([]);
   const [newConnectionLabel, setNewConnectionLabel] = useState('');
   const [showAdvancedDiagram, setShowAdvancedDiagram] = useState(false);
@@ -119,11 +119,11 @@ export default function DiagramEditorPage() {
     setLoading(true);
     setError('');
     try {
-      const dataDiagrama = await obtenerDiagrama(id);
+      const dataDiagrama = await obtenerDiagrama(id_diagrama);
       setDiagrama(dataDiagrama.diagrama);
-      const dataElementos = await listarElementos(id);
+      const dataElementos = await listarElementos(id_diagrama);
       setElementos(dataElementos.elementos || []);
-      const dataConexiones = await listarConexiones(id);
+      const dataConexiones = await listarConexiones(id_diagrama);
       setConexiones(dataConexiones.conexiones || []);
     } catch (err) {
       setError(err?.data?.mensaje || 'No se pudo cargar el diagrama.');
@@ -134,7 +134,7 @@ export default function DiagramEditorPage() {
 
   useEffect(() => {
     cargar();
-  }, [id]);
+  }, [id_diagrama]);
 
   const handleDiagramChange = (event) => {
     const { name, value } = event.target;
@@ -168,8 +168,8 @@ export default function DiagramEditorPage() {
 
   const handleDrop = async (event) => {
     event.preventDefault();
-    const tipoElemento = event.dataTransfer.getData('tipo_elemento');
-    if (!tipoElemento || tipoElemento === 'RELACION') {
+    const tipo_elemento = event.dataTransfer.getData('tipo_elemento');
+    if (!tipo_elemento || tipo_elemento === 'RELACION') {
       return;
     }
     if (!diagrama || !canvasRef.current) return;
@@ -178,18 +178,34 @@ export default function DiagramEditorPage() {
     const rect = canvasRef.current.getBoundingClientRect();
 
     // Simple calculation: mouse pos relative to canvas container + scroll
-    const posX = Math.max(0, event.clientX - rect.left);
-    const posY = Math.max(0, event.clientY - rect.top);
+    const pos_x = Math.max(0, event.clientX - rect.left);
+    const pos_y = Math.max(0, event.clientY - rect.top);
+
+    // Default dimensions by type
+    const getDefaultDimensions = (type) => {
+      switch (type) {
+        case 'ACTOR': return { w: 60, h: 100 };
+        case 'CASO_DE_USO': return { w: 140, h: 70 };
+        case 'PAQUETE': return { w: 200, h: 120 };
+        case 'LIMITE_SISTEMA': return { w: 300, h: 400 };
+        case 'NOTA': return { w: 160, h: 100 };
+        case 'TEXTO': return { w: 120, h: 40 };
+        case 'IMAGEN': return { w: 200, h: 150 };
+        default: return { w: 140, h: 70 };
+      }
+    };
+
+    const dims = getDefaultDimensions(tipo_elemento);
 
     try {
       const result = await crearElemento({
         id_diagrama: diagrama.id_diagrama,
-        tipo_elemento: tipoElemento,
+        tipo_elemento: tipo_elemento,
         etiqueta: '',
-        pos_x: Math.round(posX),
-        pos_y: Math.round(posY),
-        ancho: 140,
-        alto: 70,
+        pos_x: Math.round(pos_x),
+        pos_y: Math.round(pos_y),
+        ancho: dims.w,
+        alto: dims.h,
         rotacion_grados: 0,
         orden_z: 0,
         estilo_json: null,
@@ -319,11 +335,11 @@ export default function DiagramEditorPage() {
     }
   };
 
-  const toggleConnectionSelection = (idElemento) => {
+  const toggleConnectionSelection = (id_elemento) => {
     setSelectedForConnection((prev) => {
-      if (prev.includes(idElemento)) return prev.filter((id) => id !== idElemento);
+      if (prev.includes(id_elemento)) return prev.filter((id) => id !== id_elemento);
       if (prev.length >= 2) return prev;
-      return [...prev, idElemento];
+      return [...prev, id_elemento];
     });
   };
 
@@ -337,7 +353,7 @@ export default function DiagramEditorPage() {
         id_diagrama: diagrama.id_diagrama,
         id_elemento_origen: selectedForConnection[0],
         id_elemento_destino: selectedForConnection[1],
-        tipo_conexion: connectionType,
+        tipo_conexion: tipo_conexion,
         etiqueta: newConnectionLabel.trim() || null,
         puntos_json: null,
         estilo_json: null
@@ -385,11 +401,11 @@ export default function DiagramEditorPage() {
     }
   };
 
-  const handleEliminarConexion = async (idConexion) => {
+  const handleEliminarConexion = async (id_conexion) => {
     if (!window.confirm('¿Eliminar esta conexión?')) return;
     try {
-      await eliminarConexion(idConexion);
-      if (selectedConnectionId === idConexion) {
+      await eliminarConexion(id_conexion);
+      if (selectedConnectionId === id_conexion) {
         setSelectedConnectionId(null);
         setConnectionForm(null);
       }
@@ -421,7 +437,7 @@ export default function DiagramEditorPage() {
           </div>
           <div className="card-body p-2">
             <div className="mb-2">
-              <select className="form-select form-select-sm" value={connectionType} onChange={(e) => setConnectionType(e.target.value)}>
+              <select className="form-select form-select-sm" value={tipo_conexion} onChange={(e) => set_tipo_conexion(e.target.value)}>
                 {CONEXIONES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>

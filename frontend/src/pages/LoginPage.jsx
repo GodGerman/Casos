@@ -6,21 +6,34 @@ import { login } from '../services/auth.js';
 
 export default function LoginPage({ onLogin }) {
   const navigate = useNavigate();
-  const [nombreUsuario, setNombreUsuario] = useState('');
-  const [contrasena, setContrasena] = useState('');
+  const [nombre_usuario, set_nombre_usuario] = useState('');
+  const [contrasena, set_contrasena] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Auto-dismiss error after 3 seconds
+  React.useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError('');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
-    if (!nombreUsuario.trim() || !contrasena.trim()) {
+
+    // Validate empty fields
+    if (!nombre_usuario.trim() || !contrasena.trim()) {
       setError('Ingresa usuario y contrasena.');
       return;
     }
+
     setLoading(true);
     try {
-      const result = await login(nombreUsuario.trim(), contrasena.trim());
+      const result = await login(nombre_usuario.trim(), contrasena.trim());
       if (result && result.ok) {
         onLogin({
           id_usuario: result.id_usuario,
@@ -30,7 +43,10 @@ export default function LoginPage({ onLogin }) {
         });
         navigate('/diagramas');
       } else {
+        // Invalid credentials: show error and clear inputs
         setError('Credenciales invalidas.');
+        set_nombre_usuario('');
+        set_contrasena('');
       }
     } catch (err) {
       const mensaje = err?.data?.mensaje || 'Error al iniciar sesion.';
@@ -45,7 +61,7 @@ export default function LoginPage({ onLogin }) {
       <div className="card shadow-sm login-card">
         <div className="card-body">
           <h3 className="mb-3">Inicio de sesion</h3>
-          <AlertMessage type="danger" message={error} />
+          <AlertMessage type="danger" message={error} toast={true} />
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
               <label className="form-label" htmlFor="nombre_usuario">Usuario</label>
@@ -53,8 +69,8 @@ export default function LoginPage({ onLogin }) {
                 id="nombre_usuario"
                 className="form-control"
                 type="text"
-                value={nombreUsuario}
-                onChange={(event) => setNombreUsuario(event.target.value)}
+                value={nombre_usuario}
+                onChange={(event) => set_nombre_usuario(event.target.value)}
                 placeholder="ADMINISTRADOR"
               />
             </div>
@@ -65,7 +81,7 @@ export default function LoginPage({ onLogin }) {
                 className="form-control"
                 type="password"
                 value={contrasena}
-                onChange={(event) => setContrasena(event.target.value)}
+                onChange={(event) => set_contrasena(event.target.value)}
                 placeholder="1234"
               />
             </div>

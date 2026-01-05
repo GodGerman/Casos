@@ -23,13 +23,13 @@ public class UsuariosServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        Integer idUsuario = parseInt(request.getParameter("id_usuario"));
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        Integer id_usuario = parseInt(request.getParameter("id_usuario"));
 
-        boolean admin = isAdmin(sessionRoleId);
-        if (idUsuario != null) {
-            if (!admin && !idUsuario.equals(sessionUserId)) {
+        boolean es_admin = isAdmin(id_rol_sesion);
+        if (id_usuario != null) {
+            if (!es_admin && !id_usuario.equals(id_usuario_sesion)) {
                 ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
                 return;
             }
@@ -37,9 +37,9 @@ public class UsuariosServlet extends HttpServlet {
                     + "u.fecha_creacion, u.fecha_actualizacion "
                     + "FROM usuarios u INNER JOIN roles r ON r.id_rol = u.id_rol "
                     + "WHERE u.id_usuario = ?";
-            try (Connection con = DbUtil.getConnection();
+            try (Connection con = DB.getConnection();
                  PreparedStatement ps = con.prepareStatement(sql)) {
-                ps.setInt(1, idUsuario.intValue());
+                ps.setInt(1, id_usuario.intValue());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         JsonObjectBuilder usuario = buildUsuario(rs);
@@ -57,7 +57,7 @@ public class UsuariosServlet extends HttpServlet {
             return;
         }
 
-        if (!admin) {
+        if (!es_admin) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
@@ -66,7 +66,7 @@ public class UsuariosServlet extends HttpServlet {
                 + "u.fecha_creacion, u.fecha_actualizacion "
                 + "FROM usuarios u INNER JOIN roles r ON r.id_rol = u.id_rol "
                 + "ORDER BY u.id_usuario";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             JsonArrayBuilder usuarios = Json.createArrayBuilder();
@@ -85,34 +85,34 @@ public class UsuariosServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionRoleId = getSessionRoleId(request);
-        if (!isAdmin(sessionRoleId)) {
+        Integer id_rol_sesion = getSessionRoleId(request);
+        if (!isAdmin(id_rol_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
 
         JsonObject payload = JsonUtil.readJsonObject(request);
-        String nombreUsuario = JsonUtil.getString(payload, "nombre_usuario");
+        String nombre_usuario = JsonUtil.getString(payload, "nombre_usuario");
         String correo = JsonUtil.getString(payload, "correo");
         String contrasena = JsonUtil.getString(payload, "contrasena");
-        Integer idRol = JsonUtil.getInt(payload, "id_rol");
+        Integer id_rol = JsonUtil.getInt(payload, "id_rol");
 
-        if (nombreUsuario == null || contrasena == null || idRol == null) {
+        if (nombre_usuario == null || contrasena == null || id_rol == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "datos_incompletos");
             return;
         }
 
         String sql = "INSERT INTO usuarios (nombre_usuario, correo, contrasena, id_rol) VALUES (?,?,?,?)";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, nombreUsuario);
+            ps.setString(1, nombre_usuario);
             if (correo == null || correo.trim().isEmpty()) {
                 ps.setNull(2, java.sql.Types.VARCHAR);
             } else {
                 ps.setString(2, correo);
             }
             ps.setString(3, contrasena);
-            ps.setInt(4, idRol.intValue());
+            ps.setInt(4, id_rol.intValue());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 JsonObjectBuilder body = Json.createObjectBuilder().add("ok", true);
@@ -130,50 +130,50 @@ public class UsuariosServlet extends HttpServlet {
     protected void doPut(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         JsonObject payload = JsonUtil.readJsonObject(request);
-        Integer idUsuario = JsonUtil.getInt(payload, "id_usuario");
-        if (idUsuario == null) {
+        Integer id_usuario = JsonUtil.getInt(payload, "id_usuario");
+        if (id_usuario == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "id_usuario_requerido");
             return;
         }
 
-        Integer sessionUserId = getSessionUserId(request);
-        Integer sessionRoleId = getSessionRoleId(request);
-        boolean admin = isAdmin(sessionRoleId);
-        if (!admin && !idUsuario.equals(sessionUserId)) {
+        Integer id_usuario_sesion = getSessionUserId(request);
+        Integer id_rol_sesion = getSessionRoleId(request);
+        boolean es_admin = isAdmin(id_rol_sesion);
+        if (!es_admin && !id_usuario.equals(id_usuario_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
 
-        String nombreUsuario = JsonUtil.getString(payload, "nombre_usuario");
+        String nombre_usuario = JsonUtil.getString(payload, "nombre_usuario");
         String correo = JsonUtil.getString(payload, "correo");
         String contrasena = JsonUtil.getString(payload, "contrasena");
-        Integer idRol = JsonUtil.getInt(payload, "id_rol");
+        Integer id_rol = JsonUtil.getInt(payload, "id_rol");
 
-        if (nombreUsuario == null || contrasena == null) {
+        if (nombre_usuario == null || contrasena == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "datos_incompletos");
             return;
         }
-        if (!admin) {
-            idRol = sessionRoleId;
+        if (!es_admin) {
+            id_rol = id_rol_sesion;
         }
-        if (idRol == null) {
+        if (id_rol == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "id_rol_requerido");
             return;
         }
 
         String sql = "UPDATE usuarios SET nombre_usuario = ?, correo = ?, contrasena = ?, id_rol = ? "
                 + "WHERE id_usuario = ?";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, nombreUsuario);
+            ps.setString(1, nombre_usuario);
             if (correo == null || correo.trim().isEmpty()) {
                 ps.setNull(2, java.sql.Types.VARCHAR);
             } else {
                 ps.setString(2, correo);
             }
             ps.setString(3, contrasena);
-            ps.setInt(4, idRol.intValue());
-            ps.setInt(5, idUsuario.intValue());
+            ps.setInt(4, id_rol.intValue());
+            ps.setInt(5, id_usuario.intValue());
             int updated = ps.executeUpdate();
             if (updated == 0) {
                 ResponseUtil.writeError(response, HttpServletResponse.SC_NOT_FOUND, "usuario_no_encontrado");
@@ -189,22 +189,22 @@ public class UsuariosServlet extends HttpServlet {
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        Integer sessionRoleId = getSessionRoleId(request);
-        if (!isAdmin(sessionRoleId)) {
+        Integer id_rol_sesion = getSessionRoleId(request);
+        if (!isAdmin(id_rol_sesion)) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_FORBIDDEN, "acceso_denegado");
             return;
         }
 
-        Integer idUsuario = parseInt(request.getParameter("id_usuario"));
-        if (idUsuario == null) {
+        Integer id_usuario = parseInt(request.getParameter("id_usuario"));
+        if (id_usuario == null) {
             ResponseUtil.writeError(response, HttpServletResponse.SC_BAD_REQUEST, "id_usuario_requerido");
             return;
         }
 
         String sql = "DELETE FROM usuarios WHERE id_usuario = ?";
-        try (Connection con = DbUtil.getConnection();
+        try (Connection con = DB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, idUsuario.intValue());
+            ps.setInt(1, id_usuario.intValue());
             int deleted = ps.executeUpdate();
             if (deleted == 0) {
                 ResponseUtil.writeError(response, HttpServletResponse.SC_NOT_FOUND, "usuario_no_encontrado");
@@ -260,7 +260,7 @@ public class UsuariosServlet extends HttpServlet {
         return value instanceof Integer ? (Integer) value : null;
     }
 
-    private boolean isAdmin(Integer idRol) {
-        return idRol != null && idRol.intValue() == 1;
+    private boolean isAdmin(Integer id_rol) {
+        return id_rol != null && id_rol.intValue() == 1;
     }
 }
