@@ -829,7 +829,7 @@ export default function DiagramEditorPage() {
 
           {/* LEFT SIDEBAR: Tools & Diagram Info (Desktop: Col / Mobile: Drawer) */}
           <div className={`col-lg-2 d-none d-lg-flex flex-column bg-dark-900 border-end border-dark-700 h-100 overflow-hidden`}>
-            <LeftSidebarContent />
+            {LeftSidebarContent()}
           </div>
 
           {/* Mobile Left Drawer */}
@@ -839,7 +839,7 @@ export default function DiagramEditorPage() {
                 <span className="fw-bold text-sm px-2">Herramientas</span>
                 <button className="btn btn-sm text-secondary" onClick={() => setShowMobileTools(false)}>✕</button>
               </div>
-              <LeftSidebarContent />
+              {LeftSidebarContent()}
             </div>
           </div>
 
@@ -863,7 +863,7 @@ export default function DiagramEditorPage() {
 
           {/* RIGHT SIDEBAR: Properties & Layers (Desktop: Col / Mobile: Drawer) */}
           <div className={`col-lg-3 col-xl-2 d-none d-lg-flex flex-column bg-dark-900 border-start border-dark-700 h-100 overflow-hidden`}>
-            <RightSidebarContent />
+            {RightSidebarContent()}
           </div>
 
           {/* Mobile Right Drawer */}
@@ -873,7 +873,7 @@ export default function DiagramEditorPage() {
                 <span className="fw-bold text-sm px-2">Propiedades</span>
                 <button className="btn btn-sm text-secondary" onClick={() => setShowMobileProps(false)}>✕</button>
               </div>
-              <RightSidebarContent />
+              {RightSidebarContent()}
             </div>
           </div>
 

@@ -19,7 +19,7 @@ const ICONS = {
  * @param {{ type?: 'success'|'danger'|'warning'|'info', message?: string, toast?: boolean }} props props del componente.
  * @returns {JSX.Element|null} alerta renderizada o null si no hay mensaje.
  */
-export default function AlertMessage({ type = 'info', message, toast = false }) {
+export default function AlertMessage({ type = 'info', message, toast}) {
   if (!message) return null;
 
   const icon = ICONS[type] || ICONS.info;
